@@ -2,14 +2,23 @@ import { Body, Controller, Get, Post } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import type { LoginRequestBody } from 'src/types/auth';
 import { generateOk } from 'src/common/libs/response';
+import { ConfigService } from '@nestjs/config';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly configService: ConfigService,
+  ) {}
 
   // 登录
   @Post('login')
   login(@Body() body: LoginRequestBody) {
+    console.log(
+      'configService',
+      this.configService.get('test'),
+      this.configService.get('port'),
+    );
     return this.authService.login(body);
   }
 
