@@ -1,6 +1,7 @@
 import * as dotenv from 'dotenv';
+import { Config } from 'src/types/config';
 
-export default function loadConfigs() {
+export default function loadConfigs(): Record<Config, string> {
   const currentEnv = process.env.NODE_ENV || 'development';
   const common = dotenv.config({ path: '.env' });
   const otherEnv = dotenv.config({
@@ -17,5 +18,5 @@ export default function loadConfigs() {
   console.table(result);
   console.log('======================================\n');
 
-  return result;
+  return result as Record<Config, string>;
 }
