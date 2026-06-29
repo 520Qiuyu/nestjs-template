@@ -9,4 +9,6 @@ export enum Config {
   DATABASE_HOST = 'DATABASE_HOST',
   /** 数据库端口 */
   DATABASE_PORT = 'DATABASE_PORT',
+  /** 加密密钥 */
+  ENCRYPT_SECRET = 'ENCRYPT_SECRET',
 }

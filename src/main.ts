@@ -4,6 +4,8 @@ import { LoggerMiddleware } from './common/middlewares/logger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  // 监听 SIGINT / SIGTERM，Ctrl+C 时优雅关闭并释放端口
+  app.enableShutdownHooks();
   // 全局日志中间件
   app.use(new LoggerMiddleware().use);
   // 全局前缀
