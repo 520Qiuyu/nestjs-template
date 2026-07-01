@@ -16,8 +16,8 @@ export function generateOk<T>(
 /** 生成失败响应数据 */
 export function generateError<T>(
   message: string,
-  options?: Partial<Omit<Response<T | null>, 'message'>>,
-): Response<T | null> {
+  options?: Partial<Omit<Response<T>, 'message'>>,
+): Response<T> {
   const { code = 500, data = null } = options || {};
   return {
     code,

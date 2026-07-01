@@ -1,0 +1,90 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider     = "prisma-client-js"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+// 用户表
+model User {
+  // 唯一主键
+  id        String   @id @default(uuid())
+  // 账号
+  account   String   @unique
+  // 密码
+  password  String
+  // 状态 normal: 正常, disabled: 禁用, deleted: 删除
+  status    String   @default("normal")
+  // 创建时间
+  ctime     DateTime @default(now())
+  // 更新时间
+  utime     DateTime @default(now()) @updatedAt
+  // 是否删除
+  isDeleted Boolean  @default(false)
+}
+
+// 用户配置表
+model UserProfile {
+  // 唯一主键
+  id       String    @id @default(uuid())
+  // 用户ID
+  userId   String    @unique
+  // 昵称
+  nickname String
+  // 头像
+  avatar   String?
+  // 邮箱
+  email    String?
+  // 手机号
+  phone    String?
+  // 微信
+  wechat   String?
+  // QQ
+  qq       String?
+  // 性别
+  gender   String?
+  // 生日
+  birthday DateTime?
+  // 创建时间
+  ctime    DateTime  @default(now())
+  // 更新时间
+  utime    DateTime  @default(now()) @updatedAt
+}
+
+// 系统日志表
+model SystemLog {
+  // 唯一主键
+  id      String   @id @default(uuid())
+  // 接口路径
+  path    String
+  // 请求IP
+  ip      String
+  // 请求Cookies
+  cookie  String
+  // 请求UA
+  ua      String
+  // 请求方法
+  method  String
+  // 请求Params参数
+  params  Json
+  // 请求Body参数
+  body    Json
+  // 响应结果
+  result  Json
+  // 用户ID
+  userId  String
+  // 日志内容
+  content String
+  // 创建时间
+  ctime   DateTime @default(now())
+  // 更新时间
+  utime   DateTime @default(now()) @updatedAt
+}

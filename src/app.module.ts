@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { AuthController } from './auth/auth.controller';
-import { AuthService } from './auth/auth.service';
+import { AuthModule } from './auth/auth.module';
 import loadConfigs from './common/libs/loadConfigs';
 import { PrismaService } from './prisma.service';
+import { UserModule } from './user/user.module';
 
 @Module({
   imports: [
@@ -11,9 +11,11 @@ import { PrismaService } from './prisma.service';
       isGlobal: true,
       load: [loadConfigs],
     }),
+    AuthModule,
+    UserModule,
   ],
-  controllers: [AuthController],
-  providers: [AuthService, PrismaService],
+  controllers: [],
+  providers: [PrismaService],
 })
 export class AppModule {
   /* configure(consumer: MiddlewareConsumer) {

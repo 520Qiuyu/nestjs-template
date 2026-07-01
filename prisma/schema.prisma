@@ -5,6 +5,7 @@
 
 generator client {
   provider     = "prisma-client-js"
+  output       = "../src/generated/prisma"
   moduleFormat = "cjs"
 }
 
@@ -15,15 +16,19 @@ datasource db {
 // 用户表
 model User {
   // 唯一主键
-  id       String   @id @default(uuid())
+  id        String   @id @default(uuid())
   // 账号
-  account  String   @unique
+  account   String   @unique
   // 密码
-  password String
+  password  String
+  // 状态 normal: 正常, disabled: 禁用, deleted: 删除
+  status    String   @default("normal")
   // 创建时间
-  ctime    DateTime @default(now())
+  ctime     DateTime @default(now())
   // 更新时间
-  utime    DateTime @default(now()) @updatedAt
+  utime     DateTime @default(now()) @updatedAt
+  // 是否删除
+  isDeleted Boolean  @default(false)
 }
 
 // 用户配置表
