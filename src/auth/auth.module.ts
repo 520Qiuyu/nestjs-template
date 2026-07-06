@@ -12,6 +12,7 @@ import { AuthService } from './auth.service';
   imports: [
     UserModule,
     JwtModule.registerAsync({
+      global: true,
       useFactory: (configService: ConfigService) => {
         const secret = configService.get(Config.JWT_SECRET);
         const expiresIn = configService.get(Config.JWT_EXPIRES_IN);

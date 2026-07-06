@@ -3,8 +3,10 @@ CREATE TABLE `User` (
     `id` VARCHAR(191) NOT NULL,
     `account` VARCHAR(191) NOT NULL,
     `password` VARCHAR(191) NOT NULL,
+    `status` VARCHAR(191) NOT NULL DEFAULT 'normal',
     `ctime` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `utime` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `isDeleted` BOOLEAN NOT NULL DEFAULT false,
 
     UNIQUE INDEX `User_account_key`(`account`),
     PRIMARY KEY (`id`)

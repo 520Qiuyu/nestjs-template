@@ -17,14 +17,6 @@ import { Config } from './types/config';
       isGlobal: true,
       load: [loadConfigs],
     }),
-    JwtModule.registerAsync({
-      useFactory: (configService: ConfigService) => {
-        const secret = configService.get(Config.JWT_SECRET);
-        const expiresIn = configService.get(Config.JWT_EXPIRES_IN);
-        return { secret, signOptions: { expiresIn } };
-      },
-      inject: [ConfigService],
-    }),
     AuthModule,
     UserModule,
   ],
