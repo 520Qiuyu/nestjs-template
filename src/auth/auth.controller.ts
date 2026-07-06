@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Post } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import type { LoginRequestBody, RegisterRequestBody } from 'src/types/auth';
+import { LoginRequestBodyDto, RegisterRequestBodyDto } from '@/auth/dto/auth';
 import { generateOk } from 'src/common/libs/response';
 import { ConfigService } from '@nestjs/config';
 
@@ -13,18 +13,13 @@ export class AuthController {
 
   // 登录
   @Post('login')
-  login(@Body() body: LoginRequestBody) {
-    console.log(
-      'configService',
-      this.configService.get('test'),
-      this.configService.get('port'),
-    );
+  login(@Body() body: LoginRequestBodyDto) {
     return this.authService.login(body);
   }
 
   // 注册
   @Post('register')
-  register(@Body() body: RegisterRequestBody) {
+  register(@Body() body: RegisterRequestBodyDto) {
     return this.authService.register(body);
   }
 

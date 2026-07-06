@@ -26,6 +26,19 @@ export function generateError<T>(
   };
 }
 
+/** 生成未授权响应数据 */
+export function generateUnauthorized<T>(
+  message: string,
+  options?: Partial<Omit<Response<T>, 'message'>>,
+): Response<T> {
+  const { code = 401, data = null } = options || {};
+  return {
+    code,
+    message,
+    data,
+  };
+}
+
 /** 生成响应数据 */
 export function generateResponse<T>(options: Response<T>): Response<T> {
   return options;

@@ -9,6 +9,18 @@ export enum Config {
   DATABASE_HOST = 'DATABASE_HOST',
   /** 数据库端口 */
   DATABASE_PORT = 'DATABASE_PORT',
-  /** 加密密钥 */
+
+  /** 账户密码加密密钥 */
   ENCRYPT_SECRET = 'ENCRYPT_SECRET',
+  /** JWT 密钥 */
+  JWT_SECRET = 'JWT_SECRET',
+  /** JWT 过期时间 */
+  JWT_EXPIRES_IN = 'JWT_EXPIRES_IN',
+  
+  /** Redis 主机 */
+  REDIS_HOST = 'REDIS_HOST',
+  /** Redis 端口 */
+  REDIS_PORT = 'REDIS_PORT',
+  /** Redis 密码 */
+  REDIS_PASSWORD = 'REDIS_PASSWORD',
 }

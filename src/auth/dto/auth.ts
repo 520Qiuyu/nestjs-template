@@ -1,3 +1,4 @@
+import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';
 
 /** 登录请求体 */
@@ -6,7 +7,7 @@ export const LoginRequestBodySchema = z.object({
   password: z.string().min(1),
 });
 /** 登录请求体类型 */
-export type LoginRequestBody = z.infer<typeof LoginRequestBodySchema>;
+export class LoginRequestBodyDto extends createZodDto(LoginRequestBodySchema) {}
 
 /** 注册请求体 */
 export const RegisterRequestBodySchema = z.object({
@@ -14,4 +15,4 @@ export const RegisterRequestBodySchema = z.object({
   password: z.string().min(6),
 });
 /** 注册请求体类型 */
-export type RegisterRequestBody = z.infer<typeof RegisterRequestBodySchema>;
+export class RegisterRequestBodyDto extends createZodDto(RegisterRequestBodySchema) {}

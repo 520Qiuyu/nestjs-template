@@ -12,6 +12,12 @@ import loadConfigs from './loadConfigs';
 export type EncryptType = 'md5' | 'sha256' | 'sha512' | 'base64';
 
 /**
+ * 加密密钥
+ */
+export const ENCRYPT_SECRET =
+  loadConfigs()[Config.ENCRYPT_SECRET] || 'demo1-secret';
+
+/**
  * MD5 加密
  * @param password 原始密码
  * @returns 加密后的十六进制字符串
@@ -27,7 +33,7 @@ export const md5Hash = (password: string): string => {
  */
 export const sha256Hash = (
   password: string,
-  secret: string = 'card-secret',
+  secret: string = ENCRYPT_SECRET,
 ): string => {
   return CryptoJS.HmacSHA256(password, secret).toString();
 };
@@ -39,7 +45,7 @@ export const sha256Hash = (
  */
 export const sha512Hash = (
   password: string,
-  secret: string = 'card-secret',
+  secret: string = ENCRYPT_SECRET,
 ): string => {
   return CryptoJS.HmacSHA512(password, secret).toString();
 };
@@ -51,7 +57,7 @@ export const sha512Hash = (
  */
 export const base64Encode = (
   password: string,
-  secret: string = 'card-secret',
+  secret: string = ENCRYPT_SECRET,
 ): string => {
   return CryptoJS.enc.Base64.stringify(CryptoJS.enc.Utf8.parse(password));
 };
@@ -65,7 +71,7 @@ export const base64Encode = (
 export const encryptPassword = (
   password: string,
   type: EncryptType = 'sha256',
-  secret: string = loadConfigs()[Config.ENCRYPT_SECRET],
+  secret: string = ENCRYPT_SECRET,
 ) => {
   if (!password) {
     return '';

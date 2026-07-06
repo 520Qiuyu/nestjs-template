@@ -1,6 +1,10 @@
-import type { GetUserInfoQueryDto, UpdateUserInfoDto } from '@/types/dto/user';
+import type { RegisterRequestBodyDto } from '@/auth/dto/auth';
+import type {
+  GetUserInfoQueryDto,
+  UpdateUserInfoDto,
+} from '@/user/dto/user-dto';
 import { Injectable } from '@nestjs/common';
-import type { UserProfile } from '@prisma/client';
+import type { User, UserProfile } from '@prisma/client';
 import dayjs from 'dayjs';
 import { generateError, generateOk } from 'src/common/libs/response';
 import { PrismaService } from 'src/prisma.service';
@@ -16,7 +20,10 @@ export class UserService {
    * @param userId 用户ID
    * @returns 用户配置
    */
-  async checkUserProfile(userId: string): Promise<UserProfile> {
+  async checkUserProfile(
+    userId: string,
+    nickname?: string,
+  ): Promise<UserProfile> {
     let userProfile = await this.prisma.userProfile.findUnique({
       where: {
         userId,
@@ -26,11 +33,41 @@ export class UserService {
       userProfile = await this.prisma.userProfile.create({
         data: {
           userId,
-          nickname: `用户${userId}`,
+          nickname: nickname || `用户${userId}`,
         },
       });
     }
     return userProfile;
+  }
+
+  /**
+   * 通过 id 或 account 获取用户（部包含profile）
+   */
+  async findOne(query: GetUserInfoQueryDto): Promise<User | null> {
+    const { id, account } = query;
+    const user = await this.prisma.user.findFirst({
+      where: {
+        OR: [{ id }, { account }],
+      },
+    });
+    return user;
+  }
+
+  /**
+   * 创建用户
+   */
+  async createUser(body: RegisterRequestBodyDto): Promise<User> {
+    const { account, password } = body;
+    // 创建用户
+    const user = await this.prisma.user.create({
+      data: {
+        account,
+        password,
+      },
+    });
+    // 创建初始用户配置
+    await this.checkUserProfile(user.id, `用户${user.account}`);
+    return user;
   }
 
   /**
@@ -72,7 +109,6 @@ export class UserService {
       where: {
         OR: [{ id }, { account }],
       },
-      
     });
 
     if (!user) {
@@ -94,11 +130,9 @@ export class UserService {
    * 更新用户信息
    * @param body 更新用户信息请求体
    */
-  async updateUserInfo(body: UpdateUserInfoDto) {
+  async updateUserInfo(userId: string, body: UpdateUserInfoDto) {
     const { nickname, avatar, email, phone, wechat, qq, gender, birthday } =
       body;
-    // TEMP
-    const userId = '39822f62-01e1-47a6-b12a-dd5e86b483ba';
     // 检查用户是否存在
     const user = await this.prisma.user.findUnique({
       where: {

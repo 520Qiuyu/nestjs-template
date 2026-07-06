@@ -11,17 +11,3 @@ export interface Response<T> {
   message: string;
   data: InterfaceToUndefinedNull<T> | null;
 }
-
-// 测试用例
-interface Test {
-  a: string;
-  b?: number;
-  c: undefined;
-  d?: null;
-}
-const test: InterfaceToUndefinedNull<Test> = {
-  a: '1',
-  b: null,
-  c: undefined,
-  d: undefined,
-};
