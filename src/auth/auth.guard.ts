@@ -1,4 +1,6 @@
 import { generateUnauthorized } from '@/common/libs/response';
+import type { JwtPayload } from '@/types/auth';
+import { UserService } from '@/user/user.service';
 import {
   CanActivate,
   ExecutionContext,
@@ -7,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
+import { Request, Response } from 'express';
 import { Observable } from 'rxjs';
 import { IS_PUBLIC_KEY } from './decorator/auth.decorator';
 
@@ -14,14 +17,18 @@ import { IS_PUBLIC_KEY } from './decorator/auth.decorator';
 export class AuthGuard implements CanActivate {
   private readonly logger = new Logger(AuthGuard.name);
 
-  constructor(private readonly jwtService: JwtService, private reflector: Reflector) {}
+  constructor(
+    private readonly jwtService: JwtService,
+    private reflector: Reflector,
+    private userService: UserService,
+  ) {}
 
   canActivate(
     context: ExecutionContext,
   ): boolean | Promise<boolean> | Observable<boolean> {
     const ctx = context.switchToHttp();
-    const request = ctx.getRequest();
-    const response = ctx.getResponse();
+    const request = ctx.getRequest<Request>();
+    const response = ctx.getResponse<Response>();
 
     // 判断是否为公共路由
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
@@ -41,7 +48,7 @@ export class AuthGuard implements CanActivate {
       return false;
     }
     try {
-      const decoded = this.jwtService.verify(token);
+      const decoded = this.jwtService.verify<JwtPayload>(token);
       this.logger.log('当前用户信息:', decoded);
       request.user = decoded;
       return true;

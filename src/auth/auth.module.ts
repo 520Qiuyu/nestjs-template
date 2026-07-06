@@ -22,7 +22,7 @@ import { AuthService } from './auth.service';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, PrismaService, AuthGuard],
-  exports: [AuthService, JwtModule, AuthGuard],
+  providers: [AuthService, PrismaService],
+  exports: [AuthService, JwtModule],
 })
 export class AuthModule {}
