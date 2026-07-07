@@ -8,8 +8,8 @@ import type { User, UserProfile } from '@prisma/client';
 import dayjs from 'dayjs';
 import { generateError, generateOk } from 'src/common/libs/response';
 import { PrismaService } from 'src/prisma.service';
-import type { Response } from 'src/types/global';
-import type { UserInfoResponse } from 'src/types/user';
+import type { Response, Status } from 'src/types/global';
+import type { UserInfoResponse } from './dto/user-vo';
 
 @Injectable()
 export class UserService {
@@ -71,32 +71,6 @@ export class UserService {
   }
 
   /**
-   * 获取用户自己信息
-   */
-  async getSelfUserInfo(): Promise<Response<UserInfoResponse>> {
-    // TEMP
-    const userId = '39822f62-01e1-47a6-b12a-dd5e86b483ba';
-    // 检查用户是否存在
-    const user = await this.prisma.user.findUnique({
-      where: {
-        id: userId,
-      },
-    });
-    if (!user) {
-      return generateError('用户不存在');
-    }
-    const userProfile = await this.checkUserProfile(userId);
-    return generateOk({
-      ...userProfile,
-      account: user.account,
-      status: user.status,
-      birthday: userProfile.birthday
-        ? dayjs(userProfile.birthday).format('YYYY-MM-DD')
-        : undefined,
-    });
-  }
-
-  /**
    * 通过 id 或 account 获取用户信息
    * @param query 查询参数，id 与 account 至少提供一个
    */
@@ -104,26 +78,21 @@ export class UserService {
     query: GetUserInfoQueryDto,
   ): Promise<Response<UserInfoResponse>> {
     const { id, account } = query;
-
     const user = await this.prisma.user.findFirst({
       where: {
         OR: [{ id }, { account }],
       },
     });
-
     if (!user) {
       return generateError('用户不存在');
     }
-
     const userProfile = await this.checkUserProfile(user.id);
-    return generateOk({
+    const response = generateOk({
       ...userProfile,
-      account: user.account,
-      status: user.status,
-      birthday: userProfile.birthday
-        ? dayjs(userProfile.birthday).format('YYYY-MM-DD')
-        : undefined,
+      ...user,
+      status: user.status as Status,
     });
+    return response;
   }
 
   /**
@@ -156,7 +125,7 @@ export class UserService {
         wechat,
         qq,
         gender,
-        birthday,
+        birthday: birthday ? dayjs(birthday).toDate() : undefined,
       },
     });
 

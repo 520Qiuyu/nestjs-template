@@ -1,15 +1,14 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ConfigModule } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core';
 import { ZodSerializerInterceptor, ZodValidationPipe } from 'nestjs-zod';
+import { AuthGuard } from './auth/auth.guard';
 import { AuthModule } from './auth/auth.module';
 import loadConfigs from './common/libs/loadConfigs';
 import { HttpExceptionFilter } from './filters/http-exception-filter';
+import { PermissionModule } from './permission/permission.module';
 import { PrismaService } from './prisma.service';
 import { UserModule } from './user/user.module';
-import { AuthGuard } from './auth/auth.guard';
-import { JwtModule } from '@nestjs/jwt';
-import { Config } from './types/config';
 
 @Module({
   imports: [
@@ -18,6 +17,7 @@ import { Config } from './types/config';
       load: [loadConfigs],
     }),
     AuthModule,
+    PermissionModule,
     UserModule,
   ],
   controllers: [],
@@ -38,6 +38,7 @@ import { Config } from './types/config';
       provide: APP_FILTER,
       useClass: HttpExceptionFilter,
     },
+    // 使用AuthGuard来路由鉴权
     {
       provide: APP_GUARD,
       useClass: AuthGuard,

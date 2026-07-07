@@ -2,6 +2,7 @@ import {
   PaginationQuerySchema,
   paginationQueryShape,
 } from '@/common/dto/pagination.dto';
+import { Gender } from '@/types/global';
 import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';
 
@@ -25,8 +26,8 @@ export const UpdateUserInfoSchema = z.object({
   phone: z.string().optional(),
   wechat: z.string().optional(),
   qq: z.string().optional(),
-  gender: z.string().optional(),
-  birthday: z.string().optional(),
+  gender: z.enum(Gender).optional(),
+  birthday: z.iso.date().optional(),
 });
 /** 更新用户信息请求体类型 */
 export class UpdateUserInfoDto extends createZodDto(UpdateUserInfoSchema) {}
