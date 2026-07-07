@@ -47,3 +47,43 @@ export const SearchUserQuerySchema = z.object({
 });
 /** 用户搜索查询参数类型 */
 export class SearchUserQueryDto extends createZodDto(SearchUserQuerySchema) {}
+
+/** 更新用户状态请求体 */
+export const UpdateUserStatusSchema = z.object({
+  status: z.enum(['normal', 'disabled']),
+});
+/** 更新用户状态请求体类型 */
+export class UpdateUserStatusDto extends createZodDto(UpdateUserStatusSchema) {}
+
+/** 创建用户请求体 */
+export const CreateUserSchema = z.object({
+  account: z.string().min(5),
+  password: z.string().min(6),
+  nickname: z.string().min(1).optional(),
+  avatar: z.string().optional(),
+  email: z.string().optional(),
+  phone: z.string().optional(),
+  wechat: z.string().optional(),
+  qq: z.string().optional(),
+  gender: z.enum(Gender).optional(),
+  birthday: z.iso.date().optional(),
+  status: z.enum(['normal', 'disabled']).default('normal'),
+});
+/** 创建用户请求体类型 */
+export class CreateUserDto extends createZodDto(CreateUserSchema) {}
+
+/** 管理员更新用户请求体 */
+export const AdminUpdateUserSchema = z.object({
+  nickname: z.string().min(1).optional(),
+  avatar: z.string().optional(),
+  email: z.string().optional(),
+  phone: z.string().optional(),
+  wechat: z.string().optional(),
+  qq: z.string().optional(),
+  gender: z.enum(Gender).optional(),
+  birthday: z.iso.date().optional(),
+  status: z.enum(['normal', 'disabled']).optional(),
+  password: z.string().min(6).optional(),
+});
+/** 管理员更新用户请求体类型 */
+export class AdminUpdateUserDto extends createZodDto(AdminUpdateUserSchema) {}

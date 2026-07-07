@@ -34,3 +34,19 @@ export const PaginationQuerySchema = z.object(paginationQueryShape);
 
 /** 分页查询参数 DTO */
 export class PaginationQueryDto extends createZodDto(PaginationQuerySchema) {}
+
+/** 分页响应数据结构 */
+export const PaginatedResultSchema = <T extends z.ZodTypeAny>(itemSchema: T) =>
+  z.object({
+    list: z.array(itemSchema),
+    total: z.number(),
+    page: z.number(),
+    pageSize: z.number(),
+  });
+/** 分页响应数据结构Vo */
+export type PaginatedResultVo<T> = {
+  list: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+};

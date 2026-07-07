@@ -1,3 +1,4 @@
+import { PaginatedResultSchema } from '@/common/dto/pagination.dto';
 import { createResponseSchema, PermissionResourceMethod } from '@/types/global';
 import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';
@@ -47,15 +48,6 @@ export const PermissionUserRoleItemSchema = z.object({
   ctime: z.date(),
   utime: z.date(),
 });
-
-/** 分页响应数据结构 */
-export const PaginatedResultSchema = <T extends z.ZodTypeAny>(itemSchema: T) =>
-  z.object({
-    list: z.array(itemSchema),
-    total: z.number(),
-    page: z.number(),
-    pageSize: z.number(),
-  });
 
 /** 权限资源响应体类型 */
 export class PermissionResourceResponseDto extends createZodDto(
