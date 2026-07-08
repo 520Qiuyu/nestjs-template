@@ -45,6 +45,19 @@ export class ListPermissionResourceQueryDto extends createZodDto(
   ListPermissionResourceQuerySchema,
 ) {}
 
+/** 权限资源树返回模式：full 全量嵌套，lazy 按父级逐级返回 */
+export const PermissionResourceTreeModeSchema = z.enum(['full', 'lazy']);
+
+/** 权限资源树查询参数 */
+export const GetPermissionResourceTreeQuerySchema = z.object({
+  mode: PermissionResourceTreeModeSchema.default('full'),
+  parentId: z.string().optional(),
+});
+/** 权限资源树查询参数类型 */
+export class GetPermissionResourceTreeQueryDto extends createZodDto(
+  GetPermissionResourceTreeQuerySchema,
+) {}
+
 /** 创建权限角色请求体 */
 export const CreatePermissionRoleSchema = z.object({
   name: z.string().min(1),

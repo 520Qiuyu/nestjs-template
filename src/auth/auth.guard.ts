@@ -12,6 +12,7 @@ import { JwtService } from '@nestjs/jwt';
 import { Request, Response } from 'express';
 import { Observable } from 'rxjs';
 import { IS_PUBLIC_KEY } from './decorator/auth.decorator';
+import { Status } from '@/types/global';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
@@ -23,9 +24,7 @@ export class AuthGuard implements CanActivate {
     private userService: UserService,
   ) {}
 
-  canActivate(
-    context: ExecutionContext,
-  ): boolean | Promise<boolean> | Observable<boolean> {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const ctx = context.switchToHttp();
     const request = ctx.getRequest<Request>();
     const response = ctx.getResponse<Response>();
@@ -49,8 +48,22 @@ export class AuthGuard implements CanActivate {
     }
     try {
       const decoded = this.jwtService.verify<JwtPayload>(token);
+      const user = await this.userService.findOne({ id: decoded.id });
+      if (!user) {
+        response
+          .status(401)
+          .json(generateUnauthorized('该账号不存在，请联系管理员!'));
+        return false;
+      }
+      // 检查账号是否禁用
+      if (user.status === Status.DISABLED) {
+        response
+          .status(401)
+          .json(generateUnauthorized('该账号已禁用，请联系管理员!'));
+        return false;
+      }
       this.logger.log('当前用户信息:', decoded);
-      request.user = decoded;
+      request.user = user;
       return true;
     } catch (error) {
       this.logger.error('JWT 验证失败:', error);

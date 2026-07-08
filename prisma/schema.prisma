@@ -69,7 +69,7 @@ model PermissionResource {
   name      String
   // 资源编码
   code      String   @unique
-  // 资源类型 menu: 菜单, button: 按钮, api: 接口
+  // 资源类型 menu: 菜单, button: 按钮, api: 接口 module: 模块
   type      String   @default("api")
   // 父级ID
   parentId  String?

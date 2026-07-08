@@ -3,6 +3,7 @@ import {
   CreatePermissionRoleDto,
   CreatePermissionRoleResourceDto,
   CreatePermissionUserRoleDto,
+  GetPermissionResourceTreeQueryDto,
   ListPermissionResourceQueryDto,
   ListPermissionRoleQueryDto,
   ListPermissionRoleResourceQueryDto,
@@ -15,6 +16,7 @@ import {
 import {
   PermissionResourceListResponseDto,
   PermissionResourceResponseDto,
+  PermissionResourceTreeResponseDto,
   PermissionRoleListResponseDto,
   PermissionRoleResourceListResponseDto,
   PermissionRoleResourceResponseDto,
@@ -40,6 +42,21 @@ import { PermissionService } from './permission.service';
 export class PermissionController {
   constructor(private readonly permissionService: PermissionService) {}
 
+  // 获取权限资源列表
+  @Get('resource')
+  @ZodSerializerDto(PermissionResourceListResponseDto)
+  listResources(@Query() query: ListPermissionResourceQueryDto) {
+    return this.permissionService.listResources(query);
+  }
+
+  // 获取权限资源树
+  @Get('resource/tree')
+  @ZodSerializerDto(PermissionResourceTreeResponseDto)
+  getResourceTree(@Query() query: GetPermissionResourceTreeQueryDto) {
+    console.log('query', query);
+    return this.permissionService.getResourceTree(query);
+  }
+  
   // 创建权限资源
   @Post('resource')
   @ZodSerializerDto(PermissionResourceResponseDto)
@@ -52,13 +69,6 @@ export class PermissionController {
   @ZodSerializerDto(PermissionResourceResponseDto)
   getResource(@Param('id') id: string) {
     return this.permissionService.getResource(id);
-  }
-
-  // 获取权限资源列表
-  @Get('resource')
-  @ZodSerializerDto(PermissionResourceListResponseDto)
-  listResources(@Query() query: ListPermissionResourceQueryDto) {
-    return this.permissionService.listResources(query);
   }
 
   // 更新权限资源

@@ -147,7 +147,19 @@ export class UserService {
   async listUsers(
     query: ListUserQueryDto,
   ): Promise<Response<PaginatedResultVo<UserListItem>>> {
-    const { page, pageSize, keyword, status } = query;
+    const { pageNum, pageSize, keyword, status, sortField, sortOrder } = query;
+
+    const allowedSortFields = {
+      id: true,
+      account: true,
+      status: true,
+      ctime: true,
+      utime: true,
+    } as const;
+    const orderField =
+      sortField in allowedSortFields
+        ? (sortField as keyof typeof allowedSortFields)
+        : 'ctime';
 
     let keywordUserIds: string[] | undefined;
     if (keyword) {
@@ -185,8 +197,8 @@ export class UserService {
     const [users, total] = await this.prisma.$transaction([
       this.prisma.user.findMany({
         where,
-        orderBy: { ctime: 'desc' },
-        skip: (page - 1) * pageSize,
+        orderBy: { [orderField]: sortOrder },
+        skip: (pageNum - 1) * pageSize,
         take: pageSize,
       }),
       this.prisma.user.count({ where }),
@@ -214,7 +226,7 @@ export class UserService {
     return generateOk({
       list,
       total,
-      page,
+      pageNum,
       pageSize,
     });
   }

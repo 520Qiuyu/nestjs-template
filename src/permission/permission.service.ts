@@ -13,6 +13,7 @@ import type {
   CreatePermissionRoleDto,
   CreatePermissionRoleResourceDto,
   CreatePermissionUserRoleDto,
+  GetPermissionResourceTreeQueryDto,
   ListPermissionResourceQueryDto,
   ListPermissionRoleQueryDto,
   ListPermissionRoleResourceQueryDto,
@@ -22,13 +23,7 @@ import type {
   UpdatePermissionRoleResourceDto,
   UpdatePermissionUserRoleDto,
 } from './dto/permission-dto';
-
-type PageResult<T> = {
-  list: T[];
-  total: number;
-  page: number;
-  pageSize: number;
-};
+import type { PaginatedResultVo } from '@/common/dto/pagination.dto';
 
 @Injectable()
 export class PermissionService {
@@ -37,13 +32,13 @@ export class PermissionService {
   private createPageResult<T>(
     list: T[],
     total: number,
-    page: number,
+    pageNum: number,
     pageSize: number,
-  ): PageResult<T> {
+  ): PaginatedResultVo<T> {
     return {
       list,
       total,
-      page,
+      pageNum,
       pageSize,
     };
   }
@@ -85,9 +80,7 @@ export class PermissionService {
   }
 
   async getResource(id: string): Promise<Response<PermissionResource>> {
-    const resource = await this.prisma.permissionResource.findFirst({
-      where: { id, isDeleted: false },
-    });
+    const resource = await this.ensureResourceExists(id);
     if (!resource) {
       return generateError('资源不存在');
     }
@@ -96,8 +89,8 @@ export class PermissionService {
 
   async listResources(
     query: ListPermissionResourceQueryDto,
-  ): Promise<Response<PageResult<PermissionResource>>> {
-    const { page, pageSize, keyword, type, parentId } = query;
+  ): Promise<Response<PaginatedResultVo<PermissionResource>>> {
+    const { pageNum, pageSize, keyword, type, parentId } = query;
     const where = {
       isDeleted: false,
       ...(type ? { type } : {}),
@@ -117,22 +110,78 @@ export class PermissionService {
       this.prisma.permissionResource.findMany({
         where,
         orderBy: { ctime: 'desc' },
-        skip: (page - 1) * pageSize,
+        skip: (pageNum - 1) * pageSize,
         take: pageSize,
       }),
       this.prisma.permissionResource.count({ where }),
     ]);
 
-    return generateOk(this.createPageResult(list, total, page, pageSize));
+    return generateOk(this.createPageResult(list, total, pageNum, pageSize));
   }
 
+  private buildResourceTree(
+    resources: PermissionResource[],
+    parentId: string | null = null,
+  ) {
+    return resources
+      .filter((item) => (item.parentId ?? null) === parentId)
+      .map((item) => ({
+        ...item,
+        children: this.buildResourceTree(resources, item.id),
+      }));
+  }
+
+  async getResourceTree(query: GetPermissionResourceTreeQueryDto) {
+    const { mode, parentId } = query;
+
+    if (mode === 'lazy') {
+      const list = await this.prisma.permissionResource.findMany({
+        where: {
+          isDeleted: false,
+          parentId: parentId ?? null,
+        },
+        orderBy: { ctime: 'asc' },
+      });
+
+      if (list.length === 0) {
+        return generateOk([]);
+      }
+
+      const ids = list.map((item) => item.id);
+      const childGroups = await this.prisma.permissionResource.groupBy({
+        by: ['parentId'],
+        where: {
+          isDeleted: false,
+          parentId: { in: ids },
+        },
+        _count: { _all: true },
+      });
+      const hasChildrenMap = new Map(
+        childGroups.map((item) => [item.parentId!, item._count._all > 0]),
+      );
+
+      return generateOk(
+        list.map((item) => ({
+          ...item,
+          hasChildren: hasChildrenMap.get(item.id) ?? false,
+        })),
+      );
+    }
+
+    const all = await this.prisma.permissionResource.findMany({
+      where: { isDeleted: false },
+      orderBy: { ctime: 'asc' },
+    });
+
+    return generateOk(this.buildResourceTree(all));
+  }
+
+  /** 更新资源 */
   async updateResource(
     id: string,
     body: UpdatePermissionResourceDto,
   ): Promise<Response<PermissionResource>> {
-    const resource = await this.prisma.permissionResource.findFirst({
-      where: { id, isDeleted: false },
-    });
+    const resource = await this.ensureResourceExists(id);
     if (!resource) {
       return generateError('资源不存在');
     }
@@ -151,10 +200,9 @@ export class PermissionService {
     return generateOk(updated);
   }
 
+  /** 删除资源 */
   async deleteResource(id: string): Promise<Response<PermissionResource>> {
-    const resource = await this.prisma.permissionResource.findFirst({
-      where: { id, isDeleted: false },
-    });
+    const resource = await this.ensureResourceExists(id);
     if (!resource) {
       return generateError('资源不存在');
     }
@@ -192,8 +240,8 @@ export class PermissionService {
 
   async listRoles(
     query: ListPermissionRoleQueryDto,
-  ): Promise<Response<PageResult<PermissionRole>>> {
-    const { page, pageSize, keyword, status } = query;
+  ): Promise<Response<PaginatedResultVo<PermissionRole>>> {
+    const { pageNum, pageSize, keyword, status } = query;
     const where = {
       isDeleted: false,
       ...(status ? { status } : {}),
@@ -212,13 +260,13 @@ export class PermissionService {
       this.prisma.permissionRole.findMany({
         where,
         orderBy: { ctime: 'desc' },
-        skip: (page - 1) * pageSize,
+        skip: (pageNum - 1) * pageSize,
         take: pageSize,
       }),
       this.prisma.permissionRole.count({ where }),
     ]);
 
-    return generateOk(this.createPageResult(list, total, page, pageSize));
+    return generateOk(this.createPageResult(list, total, pageNum, pageSize));
   }
 
   async updateRole(
@@ -301,8 +349,8 @@ export class PermissionService {
 
   async listRoleResources(
     query: ListPermissionRoleResourceQueryDto,
-  ): Promise<Response<PageResult<PermissionRoleResource>>> {
-    const { page, pageSize, roleId, resourceId } = query;
+  ): Promise<Response<PaginatedResultVo<PermissionRoleResource>>> {
+    const { pageNum, pageSize, roleId, resourceId } = query;
     const where = {
       isDeleted: false,
       ...(roleId ? { roleId } : {}),
@@ -313,13 +361,13 @@ export class PermissionService {
       this.prisma.permissionRoleResource.findMany({
         where,
         orderBy: { ctime: 'desc' },
-        skip: (page - 1) * pageSize,
+        skip: (pageNum - 1) * pageSize,
         take: pageSize,
       }),
       this.prisma.permissionRoleResource.count({ where }),
     ]);
 
-    return generateOk(this.createPageResult(list, total, page, pageSize));
+    return generateOk(this.createPageResult(list, total, pageNum, pageSize));
   }
 
   async updateRoleResource(
@@ -423,8 +471,8 @@ export class PermissionService {
 
   async listUserRoles(
     query: ListPermissionUserRoleQueryDto,
-  ): Promise<Response<PageResult<PermissionUserRole>>> {
-    const { page, pageSize, userId, roleId } = query;
+  ): Promise<Response<PaginatedResultVo<PermissionUserRole>>> {
+    const { pageNum, pageSize, userId, roleId } = query;
     const where = {
       isDeleted: false,
       ...(userId ? { userId } : {}),
@@ -435,13 +483,13 @@ export class PermissionService {
       this.prisma.permissionUserRole.findMany({
         where,
         orderBy: { ctime: 'desc' },
-        skip: (page - 1) * pageSize,
+        skip: (pageNum - 1) * pageSize,
         take: pageSize,
       }),
       this.prisma.permissionUserRole.count({ where }),
     ]);
 
-    return generateOk(this.createPageResult(list, total, page, pageSize));
+    return generateOk(this.createPageResult(list, total, pageNum, pageSize));
   }
 
   async updateUserRole(

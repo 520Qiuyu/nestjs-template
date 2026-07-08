@@ -47,6 +47,8 @@ export enum PermissionResourceType {
   BUTTON = 'button',
   /** 接口 */
   API = 'api',
+  /** 模块 */
+  MODULE = 'module',
 }
 /** 权限资源请求方法枚举 */
 export enum PermissionResourceMethod {

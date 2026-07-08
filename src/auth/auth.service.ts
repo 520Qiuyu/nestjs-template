@@ -1,4 +1,5 @@
 import { LoginRequestBodyDto, RegisterRequestBodyDto } from '@/auth/dto/auth';
+import { Status } from '@/types/global';
 import { UserService } from '@/user/user.service';
 import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -29,12 +30,17 @@ export class AuthService {
     if (user?.password !== encryptPassword(password)) {
       return generateUnauthorized('用户名或密码错误');
     }
+    // 检查用户账号是否禁用
+    if (user.status === Status.DISABLED) {
+      return generateUnauthorized('该账号已禁用，请联系管理员!');
+    }
     // TODO: 将登录用户写到redis中
     // 生成JWT token
-    const payload = { account: user.account, id: user.id };
+    const payload = { account: user.account, id: user.id, status: user.status };
     const accessToken = await this.jwtService.signAsync(payload);
     return generateOk({
       account: user.account,
+      status: user.status,
       accessToken,
     });
   }

@@ -88,3 +88,16 @@ export class PermissionRoleResourceListResponseDto extends createZodDto(
 export class PermissionUserRoleListResponseDto extends createZodDto(
   createResponseSchema(PaginatedResultSchema(PermissionUserRoleItemSchema)),
 ) {}
+
+/** 权限资源树节点 */
+export const PermissionResourceTreeNodeSchema: z.ZodTypeAny = z.lazy(() =>
+  PermissionResourceItemSchema.extend({
+    children: z.array(PermissionResourceTreeNodeSchema).optional(),
+    hasChildren: z.boolean().optional(),
+  }),
+);
+
+/** 权限资源树响应体类型 */
+export class PermissionResourceTreeResponseDto extends createZodDto(
+  createResponseSchema(z.array(PermissionResourceTreeNodeSchema)),
+) {}
