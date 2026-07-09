@@ -2,7 +2,11 @@ import {
   PaginationQuerySchema,
   paginationQueryShape,
 } from '@/common/dto/pagination.dto';
-import { PermissionResourceMethod, PermissionResourceType, Status } from '@/types/global';
+import {
+  PermissionResourceMethod,
+  PermissionResourceType,
+  Status,
+} from '@/types/global';
 import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';
 
@@ -16,10 +20,10 @@ export const CreatePermissionResourceSchema = z.object({
   name: z.string().min(1),
   code: z.string().min(1),
   type: PermissionResourceTypeSchema.default(PermissionResourceType.API),
-  parentId: z.string().optional(),
-  url: z.string().optional(),
-  method: z.enum(PermissionResourceMethod).optional(),
-  remark: z.string().optional(),
+  parentId: z.string().nullish(),
+  url: z.string().nullish(),
+  method: z.enum(PermissionResourceMethod).nullish(),
+  remark: z.string().nullish(),
 });
 /** 创建权限资源请求体类型 */
 export class CreatePermissionResourceDto extends createZodDto(
@@ -158,3 +162,46 @@ export const ListPermissionUserRoleQuerySchema = z.object({
 export class ListPermissionUserRoleQueryDto extends createZodDto(
   ListPermissionUserRoleQuerySchema,
 ) {}
+
+const importDateSchema = z.union([z.iso.date(), z.coerce.date()]);
+
+/** 批量导入权限资源项 */
+export const ImportPermissionResourceItemSchema =
+  CreatePermissionResourceSchema.extend({
+    id: z.string().nullish(),
+    ctime: importDateSchema.nullish(),
+    utime: importDateSchema.nullish(),
+  });
+
+/** 批量导入权限资源请求体 */
+export const BatchImportPermissionResourcesSchema = z.object({
+  list: z.array(ImportPermissionResourceItemSchema).min(1).max(1000),
+});
+
+export class BatchImportPermissionResourcesDto extends createZodDto(
+  BatchImportPermissionResourcesSchema,
+) {}
+export type ImportPermissionResourceItem = z.infer<
+  typeof ImportPermissionResourceItemSchema
+>;
+
+/** 批量导入权限角色项 */
+export const ImportPermissionRoleItemSchema = CreatePermissionRoleSchema.extend({
+  id: z.string().nullish(),
+  description: z.string().nullish(),
+  remark: z.string().nullish(),
+  ctime: importDateSchema.nullish(),
+  utime: importDateSchema.nullish(),
+});
+
+/** 批量导入权限角色请求体 */
+export const BatchImportPermissionRolesSchema = z.object({
+  list: z.array(ImportPermissionRoleItemSchema).min(1).max(1000),
+});
+
+export class BatchImportPermissionRolesDto extends createZodDto(
+  BatchImportPermissionRolesSchema,
+) {}
+export type ImportPermissionRoleItem = z.infer<
+  typeof ImportPermissionRoleItemSchema
+>;

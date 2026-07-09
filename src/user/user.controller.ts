@@ -1,4 +1,4 @@
-import { AdminUpdateUserDto, CreateUserDto, GetUserInfoQueryDto, ListUserQueryDto, UpdateUserInfoDto, UpdateUserStatusDto } from '@/user/dto/user-dto';
+import { AdminUpdateUserDto, BatchImportUsersDto, CreateUserDto, GetUserInfoQueryDto, ListUserQueryDto, UpdateUserInfoDto, UpdateUserStatusDto } from '@/user/dto/user-dto';
 import {
   Body,
   Controller,
@@ -14,6 +14,7 @@ import {
 import { UserService } from './user.service';
 import { ZodSerializerDto } from 'nestjs-zod';
 import { GetUserInfoResponseDto, UserListResponseDto } from './dto/user-vo';
+import { BatchImportResultDto } from '@/common/dto/batch-import.dto';
 import type { Request } from 'express';
 
 @Controller('user')
@@ -46,6 +47,13 @@ export class UserController {
   @ZodSerializerDto(GetUserInfoResponseDto)
   createUser(@Body() body: CreateUserDto) {
     return this.userService.createUserAdmin(body);
+  }
+
+  // 批量导入用户
+  @Post('import/batch')
+  @ZodSerializerDto(BatchImportResultDto)
+  importUsers(@Body() body: BatchImportUsersDto) {
+    return this.userService.importUsers(body);
   }
 
   // 获取用户详情

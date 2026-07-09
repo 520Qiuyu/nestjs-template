@@ -2,8 +2,10 @@ import type { RegisterRequestBodyDto } from '@/auth/dto/auth';
 import { encryptPassword } from '@/common/libs/encrypt';
 import type {
   AdminUpdateUserDto,
+  BatchImportUsersDto,
   CreateUserDto,
   GetUserInfoQueryDto,
+  ImportUserItem,
   ListUserQueryDto,
   UpdateUserInfoDto,
   UpdateUserStatusDto,
@@ -17,6 +19,7 @@ import { PrismaService } from 'src/prisma.service';
 import type { Response, Status } from 'src/types/global';
 import type { UserInfoResponse } from './dto/user-vo';
 import { PaginatedResultVo } from '@/common/dto/pagination.dto';
+import type { BatchImportResult } from '@/common/dto/batch-import.dto';
 
 @Injectable()
 export class UserService {
@@ -27,7 +30,7 @@ export class UserService {
    * @param userId 用户ID
    * @returns 用户配置
    */
-  async checkUserProfile(
+  private async checkUserProfile(
     userId: string,
     nickname?: string,
   ): Promise<UserProfile> {
@@ -347,5 +350,137 @@ export class UserService {
     ]);
 
     return generateOk(null);
+  }
+
+  /**  */
+  private buildUserProfileData(item: ImportUserItem) {
+    const { nickname, avatar, email, phone, wechat, qq, gender, birthday, account } = item;
+    return {
+      nickname: nickname || `用户${account}`,
+      avatar,
+      email,
+      phone,
+      wechat,
+      qq,
+      gender,
+      birthday: birthday ? dayjs(birthday).toDate() : undefined,
+    };
+  }
+
+  private async upsertImportUser(item: ImportUserItem): Promise<Response<UserInfoResponse>> {
+    const { id, account, password, status, ctime, utime, ...profileInput } = item;
+    const profileData = this.buildUserProfileData(item);
+
+    if (id) {
+      const existing = await this.prisma.user.findUnique({ where: { id } });
+      if (existing) {
+        if (account !== existing.account) {
+          const accountExists = await this.findOne({ account });
+          if (accountExists && accountExists.id !== id) {
+            return generateError('该账号已存在');
+          }
+        }
+
+        await this.prisma.$transaction(async (tx) => {
+          await tx.user.update({
+            where: { id },
+            data: {
+              account,
+              ...(password ? { password: encryptPassword(password) } : {}),
+              ...(status ? { status } : {}),
+              isDeleted: false,
+              ...(ctime ? { ctime } : {}),
+              ...(utime ? { utime } : {}),
+            },
+          });
+          await tx.userProfile.upsert({
+            where: { userId: id },
+            create: {
+              userId: id,
+              ...profileData,
+              isDeleted: false,
+            },
+            update: {
+              ...profileData,
+              isDeleted: false,
+            },
+          });
+        });
+        return this.getUserInfo({ id });
+      }
+
+      if (!password) {
+        return generateError('新建用户时密码不能为空');
+      }
+      const accountExists = await this.findOne({ account });
+      if (accountExists) {
+        return generateError('该账号已存在');
+      }
+
+      await this.prisma.$transaction(async (tx) => {
+        await tx.user.create({
+          data: {
+            id,
+            account,
+            password: encryptPassword(password),
+            status: status ?? 'normal',
+            isDeleted: false,
+            ...(ctime ? { ctime } : {}),
+            ...(utime ? { utime } : {}),
+          },
+        });
+        await tx.userProfile.create({
+          data: {
+            userId: id,
+            ...profileData,
+          },
+        });
+      });
+      return this.getUserInfo({ id });
+    }
+
+    if (!password) {
+      return generateError('新建用户时密码不能为空');
+    }
+    return this.createUserAdmin({
+      account,
+      password,
+      status: status ?? 'normal',
+      nickname: profileInput.nickname ?? undefined,
+      avatar: profileInput.avatar ?? undefined,
+      email: profileInput.email ?? undefined,
+      phone: profileInput.phone ?? undefined,
+      wechat: profileInput.wechat ?? undefined,
+      qq: profileInput.qq ?? undefined,
+      gender: profileInput.gender ?? undefined,
+      birthday: profileInput.birthday
+        ? dayjs(profileInput.birthday).format('YYYY-MM-DD')
+        : undefined,
+    });
+  }
+
+  async importUsers(body: BatchImportUsersDto): Promise<Response<BatchImportResult>> {
+    const failedItems: BatchImportResult['failedItems'] = [];
+    let success = 0;
+
+    for (let index = 0; index < body.list.length; index++) {
+      const item = body.list[index];
+      const result = await this.upsertImportUser(item);
+      if (result.code === 200) {
+        success += 1;
+      } else {
+        failedItems.push({
+          index,
+          message: result.message,
+          data: item,
+        });
+      }
+    }
+
+    return generateOk({
+      success,
+      failed: failedItems.length,
+      failedItems,
+    });
   }
 }

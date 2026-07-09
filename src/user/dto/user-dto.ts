@@ -87,3 +87,31 @@ export const AdminUpdateUserSchema = z.object({
 });
 /** 管理员更新用户请求体类型 */
 export class AdminUpdateUserDto extends createZodDto(AdminUpdateUserSchema) {}
+
+const importDateSchema = z.union([z.iso.date(), z.coerce.date()]);
+
+/** 批量导入用户项 */
+export const ImportUserItemSchema = z.object({
+  id: z.string().nullish(),
+  account: z.string().min(5),
+  password: z.string().min(6).nullish(),
+  nickname: z.string().min(1).nullish(),
+  avatar: z.string().nullish(),
+  email: z.string().nullish(),
+  phone: z.string().nullish(),
+  wechat: z.string().nullish(),
+  qq: z.string().nullish(),
+  gender: z.enum(Gender).nullish(),
+  birthday: importDateSchema.nullish(),
+  status: z.enum(['normal', 'disabled']).nullish(),
+  ctime: importDateSchema.nullish(),
+  utime: importDateSchema.nullish(),
+});
+
+/** 批量导入用户请求体 */
+export const BatchImportUsersSchema = z.object({
+  list: z.array(ImportUserItemSchema).min(1).max(1000),
+});
+
+export class BatchImportUsersDto extends createZodDto(BatchImportUsersSchema) {}
+export type ImportUserItem = z.infer<typeof ImportUserItemSchema>;

@@ -9,11 +9,15 @@ import type {
   PermissionUserRole,
 } from '@prisma/client';
 import type {
+  BatchImportPermissionResourcesDto,
+  BatchImportPermissionRolesDto,
   CreatePermissionResourceDto,
   CreatePermissionRoleDto,
   CreatePermissionRoleResourceDto,
   CreatePermissionUserRoleDto,
   GetPermissionResourceTreeQueryDto,
+  ImportPermissionResourceItem,
+  ImportPermissionRoleItem,
   ListPermissionResourceQueryDto,
   ListPermissionRoleQueryDto,
   ListPermissionRoleResourceQueryDto,
@@ -24,6 +28,7 @@ import type {
   UpdatePermissionUserRoleDto,
 } from './dto/permission-dto';
 import type { PaginatedResultVo } from '@/common/dto/pagination.dto';
+import type { BatchImportResult } from '@/common/dto/batch-import.dto';
 
 @Injectable()
 export class PermissionService {
@@ -548,5 +553,175 @@ export class PermissionService {
       data: { isDeleted: true },
     });
     return generateOk(deleted);
+  }
+
+  private async upsertImportResource(
+    item: ImportPermissionResourceItem,
+  ): Promise<Response<PermissionResource>> {
+    const { id, ctime, utime, ...data } = item;
+    const resourceData = {
+      name: data.name,
+      code: data.code,
+      type: data.type,
+      parentId: data.parentId,
+      url: data.url,
+      method: data.method,
+      remark: data.remark,
+    };
+
+    if (id) {
+      const existing = await this.prisma.permissionResource.findUnique({ where: { id } });
+      if (existing) {
+        if (data.code !== existing.code) {
+          const codeExists = await this.prisma.permissionResource.findUnique({
+            where: { code: data.code },
+          });
+          if (codeExists && codeExists.id !== id && !codeExists.isDeleted) {
+            return generateError('资源编码已存在');
+          }
+        }
+        const updated = await this.prisma.permissionResource.update({
+          where: { id },
+          data: {
+            ...resourceData,
+            isDeleted: false,
+            ...(ctime ? { ctime } : {}),
+            ...(utime ? { utime } : {}),
+          },
+        });
+        return generateOk(updated);
+      }
+
+      const codeExists = await this.prisma.permissionResource.findUnique({
+        where: { code: data.code },
+      });
+      if (codeExists && !codeExists.isDeleted && codeExists.id !== id) {
+        return generateError('资源编码已存在');
+      }
+
+      const created = await this.prisma.permissionResource.create({
+        data: {
+          id,
+          ...resourceData,
+          isDeleted: false,
+          ...(ctime ? { ctime } : {}),
+          ...(utime ? { utime } : {}),
+        },
+      });
+      return generateOk(created);
+    }
+
+    return this.createResource(resourceData as CreatePermissionResourceDto);
+  }
+
+  private async upsertImportRole(
+    item: ImportPermissionRoleItem,
+  ): Promise<Response<PermissionRole>> {
+    const { id, ctime, utime, ...data } = item;
+    const roleData = {
+      name: data.name,
+      code: data.code,
+      description: data.description,
+      status: data.status,
+      remark: data.remark,
+    };
+
+    if (id) {
+      const existing = await this.prisma.permissionRole.findUnique({ where: { id } });
+      if (existing) {
+        if (data.code !== existing.code) {
+          const codeExists = await this.prisma.permissionRole.findUnique({
+            where: { code: data.code },
+          });
+          if (codeExists && codeExists.id !== id && !codeExists.isDeleted) {
+            return generateError('角色编码已存在');
+          }
+        }
+        const updated = await this.prisma.permissionRole.update({
+          where: { id },
+          data: {
+            ...roleData,
+            isDeleted: false,
+            ...(ctime ? { ctime } : {}),
+            ...(utime ? { utime } : {}),
+          },
+        });
+        return generateOk(updated);
+      }
+
+      const codeExists = await this.prisma.permissionRole.findUnique({
+        where: { code: data.code },
+      });
+      if (codeExists && !codeExists.isDeleted && codeExists.id !== id) {
+        return generateError('角色编码已存在');
+      }
+
+      const created = await this.prisma.permissionRole.create({
+        data: {
+          id,
+          ...roleData,
+          isDeleted: false,
+          ...(ctime ? { ctime } : {}),
+          ...(utime ? { utime } : {}),
+        },
+      });
+      return generateOk(created);
+    }
+
+    return this.createRole(roleData as CreatePermissionRoleDto);
+  }
+
+  async importResources(
+    body: BatchImportPermissionResourcesDto,
+  ): Promise<Response<BatchImportResult>> {
+    const failedItems: BatchImportResult['failedItems'] = [];
+    let success = 0;
+
+    for (let index = 0; index < body.list.length; index++) {
+      const item = body.list[index];
+      const result = await this.upsertImportResource(item);
+      if (result.code === 200) {
+        success += 1;
+      } else {
+        failedItems.push({
+          index,
+          message: result.message,
+          data: item,
+        });
+      }
+    }
+
+    return generateOk({
+      success,
+      failed: failedItems.length,
+      failedItems,
+    });
+  }
+
+  async importRoles(
+    body: BatchImportPermissionRolesDto,
+  ): Promise<Response<BatchImportResult>> {
+    const failedItems: BatchImportResult['failedItems'] = [];
+    let success = 0;
+
+    for (let index = 0; index < body.list.length; index++) {
+      const item = body.list[index];
+      const result = await this.upsertImportRole(item);
+      if (result.code === 200) {
+        success += 1;
+      } else {
+        failedItems.push({
+          index,
+          message: result.message,
+          data: item,
+        });
+      }
+    }
+
+    return generateOk({
+      success,
+      failed: failedItems.length,
+      failedItems,
+    });
   }
 }

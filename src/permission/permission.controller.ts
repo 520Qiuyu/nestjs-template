@@ -1,4 +1,6 @@
 import {
+  BatchImportPermissionResourcesDto,
+  BatchImportPermissionRolesDto,
   CreatePermissionResourceDto,
   CreatePermissionRoleDto,
   CreatePermissionRoleResourceDto,
@@ -36,6 +38,7 @@ import {
 } from '@nestjs/common';
 import { ZodSerializerDto } from 'nestjs-zod';
 import { PermissionService } from './permission.service';
+import { BatchImportResultDto } from '@/common/dto/batch-import.dto';
 
 // 权限管理控制器
 @Controller('permission')
@@ -56,12 +59,19 @@ export class PermissionController {
     console.log('query', query);
     return this.permissionService.getResourceTree(query);
   }
-  
+
   // 创建权限资源
   @Post('resource')
   @ZodSerializerDto(PermissionResourceResponseDto)
   createResource(@Body() body: CreatePermissionResourceDto) {
     return this.permissionService.createResource(body);
+  }
+
+  // 批量导入权限资源
+  @Post('resource/import/batch')
+  @ZodSerializerDto(BatchImportResultDto)
+  importResources(@Body() body: BatchImportPermissionResourcesDto) {
+    return this.permissionService.importResources(body);
   }
 
   // 获取权限资源详情
@@ -93,6 +103,13 @@ export class PermissionController {
   @ZodSerializerDto(PermissionRoleResponseDto)
   createRole(@Body() body: CreatePermissionRoleDto) {
     return this.permissionService.createRole(body);
+  }
+
+  // 批量导入权限角色
+  @Post('role/import/batch')
+  @ZodSerializerDto(BatchImportResultDto)
+  importRoles(@Body() body: BatchImportPermissionRolesDto) {
+    return this.permissionService.importRoles(body);
   }
 
   // 获取权限角色详情
