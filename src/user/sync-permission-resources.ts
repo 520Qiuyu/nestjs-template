@@ -2,7 +2,7 @@ import path from 'node:path';
 import { syncControllerPermissionResources } from '../common/scripts/sync-permission-resources';
 
 /** 用户模块权限资源的父节点 ID */
-export const PARENT_ID = '5fdb400d-75b0-4e9b-ad9f-442b9620bdb9';
+export const PARENT_ID = '8fda372c-61cd-4255-89f4-3f40d1cc8dd1';
 
 export async function syncUserPermissionResources(dryRun = false) {
   await syncControllerPermissionResources({
