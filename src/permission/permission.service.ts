@@ -724,4 +724,95 @@ export class PermissionService {
       failedItems,
     });
   }
+
+  /** 获取用户所有资源：单次 JOIN 查询，避免多级串行查询 */
+  async getUserResources(
+    userId: string,
+  ): Promise<Response<PermissionResource[]>> {
+    const resources = await this.prisma.$queryRaw<PermissionResource[]>`
+      SELECT DISTINCT
+        pr.id,
+        pr.name,
+        pr.code,
+        pr.type,
+        pr.parentId,
+        pr.url,
+        pr.method,
+        pr.isDeleted,
+        pr.remark,
+        pr.ctime,
+        pr.utime
+      FROM PermissionUserRole pur
+      INNER JOIN PermissionRole prole ON pur.roleId = prole.id
+      INNER JOIN PermissionRoleResource prr ON prr.roleId = prole.id
+      INNER JOIN PermissionResource pr ON pr.id = prr.resourceId
+      WHERE pur.userId = ${userId}
+        AND pur.isDeleted = false
+        AND prole.isDeleted = false
+        AND prole.status = 'normal'
+        AND prr.isDeleted = false
+        AND pr.isDeleted = false
+      ORDER BY pr.ctime ASC
+    `;
+
+    if (resources.length > 0) {
+      return generateOk(resources);
+    }
+
+    const user = await this.ensureUserExists(userId);
+    if (!user) {
+      return generateError('用户不存在');
+    }
+
+    return generateOk([]);
+  }
+
+  private matchResourceUrl(pattern: string, path: string): boolean {
+    if (!pattern) {
+      return false;
+    }
+    if (pattern === path) {
+      return true;
+    }
+
+    const regexPattern = pattern
+      .split('/')
+      .map((part) => {
+        if (part.startsWith(':')) {
+          return '[^/]+';
+        }
+        return part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      })
+      .join('/');
+
+    return new RegExp(`^${regexPattern}$`).test(path);
+  }
+
+  /** 判断用户是否拥有指定 API 权限，适合 AuthGuard 每个请求调用 */
+  async hasApiPermission(
+    userId: string,
+    url: string,
+    method: string,
+  ): Promise<boolean> {
+    const resources = await this.prisma.$queryRaw<{ url: string | null }[]>`
+      SELECT DISTINCT pr.url
+      FROM PermissionUserRole pur
+      INNER JOIN PermissionRole prole ON pur.roleId = prole.id
+      INNER JOIN PermissionRoleResource prr ON prr.roleId = prole.id
+      INNER JOIN PermissionResource pr ON pr.id = prr.resourceId
+      WHERE pur.userId = ${userId}
+        AND pur.isDeleted = false
+        AND prole.isDeleted = false
+        AND prole.status = 'normal'
+        AND prr.isDeleted = false
+        AND pr.isDeleted = false
+        AND pr.type = 'api'
+        AND pr.method = ${method}
+        AND pr.url IS NOT NULL
+    `;
+
+    return resources.some(
+      (item) => item.url && this.matchResourceUrl(item.url, url),
+    );
+  }
 }

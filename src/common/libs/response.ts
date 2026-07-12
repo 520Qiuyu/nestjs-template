@@ -39,6 +39,19 @@ export function generateUnauthorized<T>(
   };
 }
 
+/** 生成无权限响应数据 */
+export function generateForbidden<T>(
+  message: string,
+  options?: Partial<Omit<Response<T>, 'message'>>,
+): Response<T> {
+  const { code = 403, data = null } = options || {};
+  return {
+    code,
+    message,
+    data,
+  };
+}
+
 /** 生成响应数据 */
 export function generateResponse<T>(options: Response<T>): Response<T> {
   return options;
