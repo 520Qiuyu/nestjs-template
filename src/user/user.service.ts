@@ -99,10 +99,56 @@ export class UserService {
       return generateError('用户不存在');
     }
     const userProfile = await this.checkUserProfile(user.id);
+    const [roles, permissions] = await Promise.all([
+      this.prisma.$queryRaw<UserInfoResponse['roles']>`
+        SELECT DISTINCT
+          prole.id,
+          prole.name,
+          prole.code,
+          prole.description,
+          prole.status,
+          prole.remark,
+          prole.ctime,
+          prole.utime
+        FROM PermissionUserRole pur
+        INNER JOIN PermissionRole prole ON pur.roleId = prole.id
+        WHERE pur.userId = ${user.id}
+          AND pur.isDeleted = false
+          AND prole.isDeleted = false
+          AND prole.status = 'normal'
+        ORDER BY prole.ctime ASC
+      `,
+      this.prisma.$queryRaw<UserInfoResponse['permissions']>`
+        SELECT DISTINCT
+          pr.id,
+          pr.name,
+          pr.code,
+          pr.type,
+          pr.parentId,
+          pr.url,
+          pr.method,
+          pr.remark,
+          pr.ctime,
+          pr.utime
+        FROM PermissionUserRole pur
+        INNER JOIN PermissionRole prole ON pur.roleId = prole.id
+        INNER JOIN PermissionRoleResource prr ON prr.roleId = prole.id
+        INNER JOIN PermissionResource pr ON pr.id = prr.resourceId
+        WHERE pur.userId = ${user.id}
+          AND pur.isDeleted = false
+          AND prole.isDeleted = false
+          AND prole.status = 'normal'
+          AND prr.isDeleted = false
+          AND pr.isDeleted = false
+        ORDER BY pr.ctime ASC
+      `,
+    ]);
     const response = generateOk({
       ...userProfile,
       ...user,
       status: user.status as Status,
+      roles,
+      permissions,
     });
     return response;
   }
