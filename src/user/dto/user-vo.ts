@@ -1,4 +1,8 @@
 import { PaginatedResultSchema } from '@/common/dto/pagination.dto';
+import {
+  PermissionResourceItemSchema,
+  PermissionRoleItemSchema,
+} from '@/permission/dto/permission-vo';
 import { createResponseSchema, Status } from '@/types/global';
 import { createZodDto } from 'nestjs-zod';
 import z from 'zod';
@@ -21,6 +25,8 @@ export const GetUserInfoResponseSchema = z
     id: z.string(),
     account: z.string(),
     status: z.enum(Status),
+    roles: z.array(PermissionRoleItemSchema),
+    permissions: z.array(PermissionResourceItemSchema),
   })
   .merge(UserProfileFieldsSchema);
 /** 获取用户信息响应体形状 */

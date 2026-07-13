@@ -131,9 +131,9 @@ model PermissionRoleResource {
   // 更新时间
   utime      DateTime @default(now()) @updatedAt
 
+  @@unique([roleId, resourceId, isDeleted])
   @@index([roleId])
   @@index([resourceId])
-  @@unique([roleId, resourceId, isDeleted])
 }
 
 // 权限用户角色表
@@ -153,9 +153,9 @@ model PermissionUserRole {
   // 更新时间
   utime     DateTime @default(now()) @updatedAt
 
+  @@unique([userId, roleId, isDeleted])
   @@index([userId])
   @@index([roleId])
-  @@unique([userId, roleId, isDeleted])
 }
 
 // 系统日志表
@@ -186,4 +186,58 @@ model SystemLog {
   ctime   DateTime @default(now())
   // 更新时间
   utime   DateTime @default(now()) @updatedAt
+}
+
+//========== 汽水音乐 ==========
+
+// 卡密表
+model CardSecret {
+  // 唯一主键
+  id          String    @id @default(uuid())
+  // 卡密
+  secret      String    @unique
+  // 类型
+  type        String    @default("time")
+  // 过期时间
+  expireTime  DateTime?
+  // 可解析数量
+  parseLimit  Int       @default(0)
+  // 已解析数量
+  parsedCount Int       @default(0)
+  // 认证信息ID
+  authInfoId  String?
+  // 创建时间
+  ctime       DateTime  @default(now())
+  // 更新时间
+  utime       DateTime  @default(now()) @updatedAt
+  // 是否删除
+  isDeleted   Boolean   @default(false)
+  // 状态
+  status      String    @default("normal")
+  // 备注
+  remark      String?
+
+  @@index([authInfoId])
+}
+
+// 认证信息表
+model AuthInfo {
+  // 唯一主键
+  id          String   @id @default(uuid())
+  // 用户信息
+  userInfo    Json
+  // 认证信息
+  authInfo    Json
+  // 是否可用
+  isAvailable Boolean  @default(true)
+  // 状态
+  status      String   @default("normal")
+  // 创建时间
+  ctime       DateTime @default(now())
+  // 更新时间
+  utime       DateTime @default(now()) @updatedAt
+  // 是否删除
+  isDeleted   Boolean  @default(false)
+  // 备注
+  remark      String?
 }
