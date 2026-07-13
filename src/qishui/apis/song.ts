@@ -36,8 +36,8 @@ export const getQishuiTrack = async (
   const {
     trackId,
     mediaType = 'track',
-    queueType = 'daily_mix',
-    sceneName = 'track_reco',
+    queueType = 'favorite_track_playlist',
+    sceneName = 'undefined',
   } = params;
   const { timeout = DEFAULT_TIMEOUT } = options;
   const body = {
@@ -56,7 +56,6 @@ export const getQishuiTrack = async (
       headers: buildQishuiHeaders(auth, {
         ...options,
         contentType: 'application/json; charset=utf-8',
-        body,
       }),
     },
   );

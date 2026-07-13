@@ -9,6 +9,7 @@ import { HttpExceptionFilter } from './filters/http-exception-filter';
 import { PermissionModule } from './permission/permission.module';
 import { PrismaService } from './prisma.service';
 import { UserModule } from './user/user.module';
+import { QishuiModule } from './qishui/qishui.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { UserModule } from './user/user.module';
     AuthModule,
     PermissionModule,
     UserModule,
+    QishuiModule,
   ],
   controllers: [],
   providers: [

@@ -1,3 +1,6 @@
+import { PlaylistPageData } from './platlist';
+import { TrackPageData } from './song';
+
 /** 汽水接口认证参数 */
 export interface QishuiAuthParams {
   /** 设备 ID */
@@ -12,7 +15,7 @@ export interface QishuiAuthParams {
 
 /** 汽水公共请求可选覆盖参数 */
 export interface QishuiRequestOptions {
-  /** install id，默认空字符串 */
+  /** install id，默认 3717874987061322 */
   iid?: string;
   /** fingerprint，默认与 deviceId 相同 */
   fp?: string;
@@ -35,9 +38,9 @@ export interface GetQishuiTrackParams {
   trackId: string;
   /** 媒体类型，默认 track */
   mediaType?: string;
-  /** 队列类型，默认 daily_mix */
+  /** 队列类型，默认 favorite_track_playlist */
   queueType?: string;
-  /** 场景名，默认 track_reco */
+  /** 场景名，默认 undefined */
   sceneName?: string;
 }
 
@@ -47,9 +50,14 @@ export type GetQishuiTrackOptions = QishuiRequestOptions;
 /** 构建汽水请求头时的扩展选项 */
 export interface BuildQishuiHeadersOptions extends QishuiRequestOptions {
   contentType?: string;
-  /** 传入后自动计算 x-ss-stub */
-  body?: unknown;
 }
+
+export type RouterData = {
+  loaderData?: {
+    track_page?: TrackPageData;
+    playlist_page?: PlaylistPageData;
+  };
+};
 
 export type {
   GetQishuiTrackResponse,

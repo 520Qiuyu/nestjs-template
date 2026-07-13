@@ -1,4 +1,3 @@
-import { createHash } from 'crypto';
 import type {
   BuildQishuiHeadersOptions,
   QishuiAuthParams,
@@ -6,9 +5,10 @@ import type {
 } from '@/types/qishui';
 
 export const QISHUI_BASE_URL = 'https://api.qishui.com';
-export const DEFAULT_VERSION_NAME = '3.5.2';
-export const DEFAULT_VERSION_CODE = '30050200';
-export const DEFAULT_USER_AGENT = `LunaPC/${DEFAULT_VERSION_NAME}(412998333)`;
+export const DEFAULT_VERSION_NAME = '3.4.0';
+export const DEFAULT_VERSION_CODE = '30040000';
+export const DEFAULT_IID = '3717874987061322';
+export const DEFAULT_USER_AGENT = `LunaPC/${DEFAULT_VERSION_NAME}(388267242)`;
 export const DEFAULT_TIMEOUT = 15000;
 
 /**
@@ -23,7 +23,7 @@ export const buildQishuiQueryParams = (
   options: QishuiRequestOptions = {},
 ) => {
   const {
-    iid = '',
+    iid = DEFAULT_IID,
     fp = auth.deviceId,
     versionName = DEFAULT_VERSION_NAME,
     versionCode = DEFAULT_VERSION_CODE,
@@ -55,35 +55,26 @@ export const buildQishuiQueryParams = (
 };
 
 /**
- * 构建汽水公共请求头
+ * 构建汽水公共请求头（与可用版 trackV2 保持一致）
  * @example
  * ```ts
- * buildQishuiHeaders(auth, { contentType: 'application/json; charset=utf-8', body: payload })
+ * buildQishuiHeaders(auth, { contentType: 'application/json; charset=utf-8' })
  * ```
  */
 export const buildQishuiHeaders = (
   auth: QishuiAuthParams,
   options: BuildQishuiHeadersOptions = {},
 ) => {
-  const { userAgent = DEFAULT_USER_AGENT, contentType, body } = options;
+  const { userAgent = DEFAULT_USER_AGENT, contentType } = options;
   const headers: Record<string, string> = {
     'User-Agent': userAgent,
-    'Accept-Encoding': 'gzip, deflate',
     'x-helios': auth.xHelios,
     'x-medusa': auth.xMedusa,
-    'x-luna-background-type': 'foreground',
-    'x-luna-is-background-req': '0',
-    'x-luna-is-local-user': '1',
     Cookie: auth.cookie,
   };
 
   if (contentType) {
     headers['Content-Type'] = contentType;
-  }
-
-  if (body !== undefined) {
-    const raw = typeof body === 'string' ? body : JSON.stringify(body);
-    headers['x-ss-stub'] = createHash('md5').update(raw).digest('hex').toUpperCase();
   }
 
   return headers;
