@@ -1,14 +1,15 @@
-import type { PlaylistMusicInfo, PlaylistTrack } from "@/types/qishui/platlist";
-import { getQishuiImageUrl, parseRouterData } from ".";
+import type { PlaylistMusicInfo, PlaylistTrack } from '@/types/qishui/platlist';
+import { getQishuiImageUrl, parseRouterData } from '.';
 
 export const getQishuiMusicUrl = (id: string) => {
   return `https://music.douyin.com/qishui/share/track?track_id=${id}`;
 };
 
-const formatPlaylistArtists = (artists?: PlaylistTrack["artists"]) => {
-  const artistNames = artists?.map(artist => artist.name).filter(Boolean) || [];
+const formatPlaylistArtists = (artists?: PlaylistTrack['artists']) => {
+  const artistNames =
+    artists?.map((artist) => artist.name).filter(Boolean) || [];
 
-  return artistNames.length > 0 ? artistNames.join(" / ") : "未知歌手";
+  return artistNames.length > 0 ? artistNames.join(' / ') : '未知歌手';
 };
 
 /**
@@ -17,7 +18,8 @@ const formatPlaylistArtists = (artists?: PlaylistTrack["artists"]) => {
  * @example
  * const isPreviewOnly = isPlaylistPreviewOnlyTrack(track);
  */
-const isPlaylistPreviewOnlyTrack = (track: PlaylistTrack) => track.limited_free_info != null;
+const isPlaylistPreviewOnlyTrack = (track: PlaylistTrack) =>
+  track.limited_free_info != null;
 
 /**
  * 获取歌单内用于展示和试听判断的时长。
@@ -25,7 +27,10 @@ const isPlaylistPreviewOnlyTrack = (track: PlaylistTrack) => track.limited_free_
  * @example
  * const previewDuration = getPlaylistPreviewDuration(track, isPreviewOnly);
  */
-const getPlaylistPreviewDuration = (track: PlaylistTrack, isPreviewOnly: boolean) => {
+const getPlaylistPreviewDuration = (
+  track: PlaylistTrack,
+  isPreviewOnly: boolean,
+) => {
   if (!isPreviewOnly) {
     return track.duration;
   }
@@ -39,7 +44,9 @@ const getPlaylistPreviewDuration = (track: PlaylistTrack, isPreviewOnly: boolean
  * @example
  * const musicInfo = formatPlaylistMusicInfo(media.entity?.track);
  */
-const formatPlaylistMusicInfo = (track?: PlaylistTrack): PlaylistMusicInfo | null => {
+const formatPlaylistMusicInfo = (
+  track?: PlaylistTrack,
+): PlaylistMusicInfo | null => {
   if (!track) {
     return null;
   }
@@ -47,10 +54,12 @@ const formatPlaylistMusicInfo = (track?: PlaylistTrack): PlaylistMusicInfo | nul
 
   return {
     id: track.id,
-    title: track.name || "未知歌曲",
+    title: track.name || '未知歌曲',
     artist: formatPlaylistArtists(track.artists),
-    album: track.album?.name || "未知专辑",
-    cover: getQishuiImageUrl(track.album?.url_cover) || "https://via.placeholder.com/120",
+    album: track.album?.name || '未知专辑',
+    cover:
+      getQishuiImageUrl(track.album?.url_cover) ||
+      'https://via.placeholder.com/120',
     duration: track.duration,
     previewDuration: getPlaylistPreviewDuration(track, isPreviewOnly),
     isPreviewOnly,
@@ -68,28 +77,35 @@ const formatPlaylistMusicInfo = (track?: PlaylistTrack): PlaylistMusicInfo | nul
  */
 export const parsePlaylistInfo = async (html: string) => {
   if (!html) {
-    throw new Error("请传入页面 HTML 内容");
+    throw new Error('请传入页面 HTML 内容');
   }
   const routerData = parseRouterData(html);
-  console.log("routerData", routerData);
   const playlistPage = routerData?.loaderData?.playlist_page;
   if (!playlistPage?.playlistInfo) {
-    throw new Error("未找到歌单信息");
+    throw new Error('未找到歌单信息');
   }
 
   const rawPlaylistInfo = playlistPage.playlistInfo;
   const tracks =
     playlistPage.medias
-      ?.map(media => formatPlaylistMusicInfo(media.entity?.track))
+      ?.map((media) => formatPlaylistMusicInfo(media.entity?.track))
       .filter((track): track is PlaylistMusicInfo => Boolean(track)) || [];
 
   return {
     id: rawPlaylistInfo.id,
-    title: rawPlaylistInfo.title || rawPlaylistInfo.public_title || "未知歌单",
-    cover: getQishuiImageUrl(rawPlaylistInfo.url_cover) || "https://via.placeholder.com/120",
-    owner: rawPlaylistInfo.owner?.nickname || rawPlaylistInfo.owner?.public_name || "未知用户",
+    title: rawPlaylistInfo.title || rawPlaylistInfo.public_title || '未知歌单',
+    cover:
+      getQishuiImageUrl(rawPlaylistInfo.url_cover) ||
+      'https://via.placeholder.com/120',
+    owner:
+      rawPlaylistInfo.owner?.nickname ||
+      rawPlaylistInfo.owner?.public_name ||
+      '未知用户',
     countTracks:
-      rawPlaylistInfo.count_tracks || rawPlaylistInfo.resource_cnt?.track_cnt || tracks.length,
+      rawPlaylistInfo.count_tracks ||
+      rawPlaylistInfo.resource_cnt?.track_cnt ||
+      tracks?.length ||
+      0,
     tracks,
   };
 };

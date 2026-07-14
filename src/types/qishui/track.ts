@@ -8,6 +8,43 @@ export interface QishuiImage {
   template_prefix?: string;
 }
 
+/**
+ * 汽水音质枚举
+ * @description 枚举名为中文音质，值为接口标识字符串
+ * @example
+ * ```ts
+ * QishuiAudioQuality.标准音质 // 'medium'
+ * QISHUI_AUDIO_QUALITY_MAP['medium'] // '标准音质'
+ * ```
+ */
+export enum QishuiAudioQuality {
+  /** 试听音质 */
+  试听音质 = 'audition',
+  /** 标准音质 */
+  标准音质 = 'medium',
+  /** 较高音质 */
+  较高音质 = 'higher',
+  /** 极高音质 */
+  极高音质 = 'highest',
+  /** 无损音质 */
+  无损音质 = 'lossless',
+  /** 空间音频 */
+  空间音频 = 'spatial',
+  /** Hi-Res 音质 */
+  HiRes音质 = 'hi_res',
+}
+
+/** 音质标识 → 中文名称 Map */
+export const QISHUI_AUDIO_QUALITY_MAP: Record<QishuiAudioQuality, string> = {
+  [QishuiAudioQuality.试听音质]: '试听音质',
+  [QishuiAudioQuality.标准音质]: '标准音质',
+  [QishuiAudioQuality.较高音质]: '较高音质',
+  [QishuiAudioQuality.极高音质]: '极高音质',
+  [QishuiAudioQuality.无损音质]: '无损音质',
+  [QishuiAudioQuality.空间音频]: '空间音频',
+  [QishuiAudioQuality.HiRes音质]: 'Hi-Res音质',
+};
+
 /** 汽水艺人 */
 export interface QishuiArtist {
   id: string;
@@ -111,5 +148,48 @@ export interface GetQishuiTrackResponse {
     log_id?: string;
     now?: number;
     now_ts_ms?: number;
+  };
+}
+
+/** GetPlayInfo 单条播放信息（关键字段） */
+export interface QishuiPlayInfoItem {
+  Bitrate: number;
+  Size: number;
+  Format: string;
+  Codec: string;
+  Quality: string;
+  Duration: number;
+  EncryptionMethod: string;
+  PlayAuth?: string;
+  PlayAuthID?: string;
+  MainPlayUrl: string;
+  BackupPlayUrl: string;
+  /** 链接过期时间（秒级时间戳） */
+  UrlExpire?: number;
+  FileID?: string;
+  FileHash?: string;
+}
+
+/** GetPlayInfo 数据体（关键字段） */
+export interface QishuiPlayInfoData {
+  Status?: number;
+  VideoID?: string;
+  Duration?: number;
+  MediaType?: string;
+  PlayInfoList?: QishuiPlayInfoItem[];
+  TotalCount?: number;
+}
+
+/** 通过 url_player_info 获取播放链接的响应 */
+export interface GetQishuiPlayInfoResponse {
+  ResponseMetadata?: {
+    RequestId?: string;
+    Action?: string;
+    Version?: string;
+    Service?: string;
+    Region?: string;
+  };
+  Result?: {
+    Data?: QishuiPlayInfoData;
   };
 }

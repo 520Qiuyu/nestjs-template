@@ -1,7 +1,13 @@
-import { getAudioFormatFromNetwork, parseRouterData } from '.';
-import type { MusicInfo } from '@/types/qishui/song';
-import type { KrcLyrics } from '@/types/qishui/song';
+import type { KrcLyrics, MusicInfo } from '@/types/qishui/song';
+import { parseRouterData } from '.';
 
+/**
+ * 将毫秒时间格式化为标准 LRC 时间戳
+ * @example
+ * ```ts
+ * formatLrcTime(14730) // '00:14.73'
+ * ```
+ */
 const formatLrcTime = (timeMs: number) => {
   const normalizedTimeMs = Number.isFinite(timeMs) ? Math.max(timeMs, 0) : 0;
   const minutes = Math.floor(normalizedTimeMs / 60000);
@@ -43,6 +49,50 @@ export const parseLrc = (
 };
 
 /**
+ * 将汽水 KRC 歌词正文转为标准 LRC / 纯文本
+ * @param content KRC 歌词原文
+ * @param type `lrc` 带时间戳，`text` 仅歌词文本，默认 `lrc`
+ * @example
+ * ```ts
+ * krcToLrc('[14730,6290]<0,370,0>想<400,350,0>去')
+ * // => '[00:14.73]想去'
+ *
+ * krcToLrc('[14730,6290]<0,370,0>想<400,350,0>去', 'text')
+ * // => '想去'
+ * ```
+ */
+export const krcToLrc = (
+  content?: string | null,
+  type: 'lrc' | 'text' = 'lrc',
+) => {
+  if (!content?.trim()) {
+    return '';
+  }
+
+  const isLrc = type === 'lrc';
+
+  return content
+    .split(/\r?\n/)
+    .map((line) => {
+      const match = line.match(/^\[(\d+),\d+\](.*)$/);
+      if (!match) {
+        const text = line.replace(/<\d+,\d+,\d+>/g, '').trim();
+        return text;
+      }
+
+      const startMs = Number(match[1]);
+      const text = match[2].replace(/<\d+,\d+,\d+>/g, '').trim();
+      if (!text) {
+        return '';
+      }
+
+      return isLrc ? `[${formatLrcTime(startMs)}]${text}` : text;
+    })
+    .filter(Boolean)
+    .join('\n');
+};
+
+/**
  * 解析音乐信息。
  *
  * @example
@@ -73,13 +123,6 @@ export const parseMusicInfo = async (html: string) => {
       : '';
     const lrc = `[ti:${title}]\n[ar:${artist}]\n${parseLrc(audioWithLyricsOption.lyrics)}`;
     const lrcTxt = parseLrc(audioWithLyricsOption.lyrics, 'txt');
-    let format = 'm4a';
-    try {
-      const { ext } = await getAudioFormatFromNetwork(url);
-      format = ext;
-    } catch (error) {
-      console.error('获取音频格式失败:', error);
-    }
     musicInfo = {
       trackId: routerData?.loaderData?.track_page?.track_id,
       title,
@@ -87,12 +130,16 @@ export const parseMusicInfo = async (html: string) => {
       album,
       cover,
       lrc,
-      ext: format,
       lrcText: lrcTxt,
+      // @ts-ignore
+      // routerData,
       urls: [
         {
           url,
           quality: 'audition',
+          size: 0,
+          format: 'm4a',
+          encryptionMethod: '',
           playAuth: '',
           playAuthID: '',
         },

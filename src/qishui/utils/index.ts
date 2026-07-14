@@ -4,7 +4,14 @@ import type { RouterData } from '@/types/qishui';
 import type { AudioFileFormat } from '@/types/qishui/song';
 import type { QishuiImage } from '@/types/qishui/track';
 
-/** 解析链接 */
+/**
+ * 解析链接，从分享文案中提取 url 地址
+ * @example
+ * ```ts
+ * parseLink('《那年》@汽水音乐 https://qishui.douyin.com/s/iCACwDLS/')
+ * // => 'https://qishui.douyin.com/s/iCACwDLS/'
+ * ```
+ */
 export const parseLink = (link: string) => {
   const url = link.match(/https:\/\/[^\s]+/) ?? '';
   if (!url) {
@@ -239,3 +246,7 @@ const getMimeTypeByExtension = (ext: string) => {
 
   return mimeTypeMap[ext] || 'application/octet-stream';
 };
+
+
+
+

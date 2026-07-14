@@ -30,16 +30,4 @@ export class QishuiController {
   async getSongInfo(@Query() query: GetSongInfoQueryDto) {
     return this.qishuiService.getSongInfo(query);
   }
-
-  // 根据歌单id获取歌单信息
-  @Get('get-playlist-info')
-  async getPlaylistInfo(@Query() query: GetPlaylistInfoQueryDto) {
-    return this.qishuiService.getPlaylistInfo(query);
-  }
-
-  // 获取歌曲播放链接
-  @Get('get-song-play-url')
-  async getSongPlayUrl(@Query() query: GetSongPlayUrlQueryDto) {
-    return this.qishuiService.getSongPlayUrl(query);
-  }
 }

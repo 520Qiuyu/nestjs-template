@@ -1,20 +1,29 @@
-export interface IUrl {
+export type IUrl = {
   url: string;
   quality: string;
-  playAuth: string;
-  playAuthID: string;
+  size: number;
+  format: string;
+  encryptionMethod: string;
+  playAuth?: string;
+  playAuthID?: string;
+};
+
+export interface MusicArtist {
+  id: string;
+  name: string;
+  avatar?: string;
 }
 
 export type MusicInfo = {
   trackId?: string;
   title?: string;
   artist?: string;
+  artists?: MusicArtist[];
   album?: string;
   cover?: string;
   urls?: IUrl[];
   lrc?: string;
   lrcText?: string;
-  ext?: string;
 };
 
 export type KrcLyricWord = {

@@ -3,6 +3,8 @@ import type {
   QishuiAuthParams,
   QishuiRequestOptions,
 } from '@/types/qishui';
+import type { AxiosRequestConfig } from 'axios';
+import axios from 'axios';
 
 export const QISHUI_BASE_URL = 'https://api.qishui.com';
 export const DEFAULT_VERSION_NAME = '3.4.0';
@@ -55,7 +57,7 @@ export const buildQishuiQueryParams = (
 };
 
 /**
- * 构建汽水公共请求头（与可用版 trackV2 保持一致）
+ * 构建汽水公共请求头
  * @example
  * ```ts
  * buildQishuiHeaders(auth, { contentType: 'application/json; charset=utf-8' })
@@ -79,3 +81,80 @@ export const buildQishuiHeaders = (
 
   return headers;
 };
+
+const axiosInstance = axios.create({
+  baseURL: QISHUI_BASE_URL,
+  timeout: DEFAULT_TIMEOUT,
+  headers: {
+    'Content-Type': 'application/json; charset=utf-8',
+  },
+});
+
+/**
+ * 合并汽水公共 query / headers
+ */
+const buildConfig = (
+  auth: QishuiAuthParams,
+  options: QishuiRequestOptions = {},
+  config: AxiosRequestConfig = {},
+): AxiosRequestConfig => {
+  const { timeout = DEFAULT_TIMEOUT } = options;
+  const { params, headers, ...rest } = config;
+
+  return {
+    timeout,
+    ...rest,
+    params: {
+      ...buildQishuiQueryParams(auth, options),
+      ...(params as Record<string, unknown> | undefined),
+    },
+    headers: {
+      ...buildQishuiHeaders(auth, {
+        ...options,
+        contentType: 'application/json; charset=utf-8',
+      }),
+      ...(headers as Record<string, string> | undefined),
+    },
+  };
+};
+
+/**
+ * 汽水 GET 请求
+ * @example
+ * ```ts
+ * const data = await get('/luna/pc/me', auth);
+ * ```
+ */
+export const get = async <R = any>(
+  url: string,
+  auth: QishuiAuthParams,
+  config: AxiosRequestConfig = {},
+  options: QishuiRequestOptions = {},
+) => {
+  const { data } = await axiosInstance.get<R>(url, buildConfig(auth, options, config));
+  return data;
+};
+
+/**
+ * 汽水 POST 请求
+ * @example
+ * ```ts
+ * const data = await post('/luna/pc/track_v2', auth, { track_id: 'xxx' });
+ * ```
+ */
+export const post = async <R = any>(
+  url: string,
+  auth: QishuiAuthParams,
+  body?: unknown,
+  config: AxiosRequestConfig = {},
+  options: QishuiRequestOptions = {},
+) => {
+  const { data } = await axiosInstance.post<R>(
+    url,
+    body,
+    buildConfig(auth, options, config),
+  );
+  return data;
+};
+
+export default axiosInstance;

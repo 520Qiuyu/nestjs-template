@@ -60,12 +60,17 @@ export type RouterData = {
 };
 
 export type {
+  GetQishuiPlayInfoResponse,
   GetQishuiTrackResponse,
+  QISHUI_AUDIO_QUALITY_MAP,
   QishuiAlbum,
   QishuiArtist,
+  QishuiAudioQuality,
   QishuiBitRate,
   QishuiImage,
   QishuiLyric,
+  QishuiPlayInfoData,
+  QishuiPlayInfoItem,
   QishuiPlayVideoItem,
   QishuiTrack,
   QishuiTrackPlayer,
