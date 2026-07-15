@@ -1,19 +1,15 @@
-import { generateOk } from '@/common/libs/response';
+import { generateError, generateOk } from '@/common/libs/response';
 import type {
-  GetPlaylistInfoQueryDto,
   GetSongInfoQueryDto,
-  GetSongPlayUrlQueryDto,
   ParseShareLinkQueryDto,
 } from '@/qishui/dto/qishui-dto';
-import type { GetQishuiTrackResponse, QishuiAuthParams } from '@/types/qishui';
+import type { QishuiAuthParams } from '@/types/qishui';
+import type { MusicInfo } from '@/types/qishui/song';
 import { Injectable } from '@nestjs/common';
 import { getQishuiSongPlayUrl, getQishuiTrack } from './apis/song';
 import { getQishuiImageUrl, parseLink } from './utils';
 import { parsePlaylistInfo } from './utils/platlist';
 import { krcToLrc, parseMusicInfo } from './utils/song';
-import type { MusicInfo } from '@/types/qishui/song';
-import axios from 'axios';
-import { get } from './utils/request';
 
 /** 临时测试用认证信息，后续改为从认证信息表读取 */
 const TEMP_AUTH_INFO: QishuiAuthParams = {
@@ -98,10 +94,17 @@ export class QishuiService {
 
   /** 歌单分享链接解析 */
   async parsePlaylistShareLink(query: ParseShareLinkQueryDto) {
-    const shareUrl = parseLink(query.shareLink);
-    const html = await fetch(shareUrl).then((res) => res.text());
-    const routerData = await parsePlaylistInfo(html);
-    return generateOk({ shareLink: query.shareLink, routerData });
+    try {
+      const shareUrl = parseLink(query.shareLink);
+      const html = await fetch(shareUrl).then((res) => res.text());
+      const routerData = await parsePlaylistInfo(html);
+      return generateOk({ shareLink: query.shareLink, routerData });
+    } catch (error) {
+      console.error('解析歌单分享链接失败:', error);
+      return generateError(
+        error instanceof Error ? error.message : '解析歌单分享链接失败',
+      );
+    }
   }
 
   /** 根据歌曲 id 获取歌曲信息 */
