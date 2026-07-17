@@ -8,14 +8,26 @@ export interface QishuiAuthParams {
   /** Cookie */
   cookie: string;
   /** x-helios */
-  xHelios: string;
+  xHelios?: string;
   /** x-medusa */
-  xMedusa: string;
+  xMedusa?: string;
+  /** x-argus，每次请求动态签名（可选） */
+  xArgus?: string;
+  /** x-gorgon，每次请求动态签名（可选） */
+  xGorgon?: string;
+  /** x-ladon，每次请求动态签名（可选） */
+  xLadon?: string;
+  /** x-khronos，请求时间戳（可选） */
+  xKhronos?: string;
+  /** x-ss-stub，请求体 MD5（可选） */
+  xSsStub?: string;
+  /** x-tt-trace-id，链路追踪 ID（可选） */
+  xTtTraceId?: string;
 }
 
 /** 汽水公共请求可选覆盖参数 */
 export interface QishuiRequestOptions {
-  /** install id，默认 3717874987061322 */
+  /** install id，默认 1167017294437932 */
   iid?: string;
   /** fingerprint，默认与 deviceId 相同 */
   fp?: string;
@@ -38,9 +50,9 @@ export interface GetQishuiTrackParams {
   trackId: string;
   /** 媒体类型，默认 track */
   mediaType?: string;
-  /** 队列类型，默认 favorite_track_playlist */
+  /** 队列类型，默认 self_playlist */
   queueType?: string;
-  /** 场景名，默认 undefined */
+  /** 场景名，默认 library */
   sceneName?: string;
 }
 

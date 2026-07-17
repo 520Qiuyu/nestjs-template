@@ -23,8 +23,8 @@ export const getQishuiTrack = (
   const {
     trackId,
     mediaType = 'track',
-    queueType = 'favorite_track_playlist',
-    sceneName = 'undefined',
+    queueType = 'self_playlist',
+    sceneName = 'library',
   } = params;
 
   return post<GetQishuiTrackResponse>(
