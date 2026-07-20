@@ -5,11 +5,12 @@ import type {
 } from '@/types/qishui';
 import type { AxiosRequestConfig } from 'axios';
 import axios from 'axios';
+import { createHash } from 'node:crypto';
 
 export const QISHUI_BASE_URL = 'https://api.qishui.com';
 export const DEFAULT_VERSION_NAME = '3.5.2';
 export const DEFAULT_VERSION_CODE = '30050200';
-export const DEFAULT_IID = '1167017294437932';
+export const DEFAULT_IID = '1958661630215212';
 export const DEFAULT_USER_AGENT = `LunaPC/${DEFAULT_VERSION_NAME}(412998333)`;
 export const DEFAULT_TIMEOUT = 15000;
 
@@ -108,6 +109,39 @@ const axiosInstance = axios.create({
 });
 
 /**
+ * 将请求体转换为最终发送的 JSON，并生成汽水校验摘要
+ * @example
+ * ```ts
+ * const result = buildQishuiBodySignature({ track_id: '123' });
+ * // result.stub === MD5(result.serializedBody).toUpperCase()
+ * ```
+ */
+const buildQishuiBodySignature = (body: unknown) => {
+  const serializedBody = typeof body === 'string' ? body : JSON.stringify(body);
+  const stub = createHash('md5')
+    .update(serializedBody)
+    .digest('hex')
+    .toUpperCase();
+
+  return { serializedBody, stub };
+};
+
+axiosInstance.interceptors.request.use((config) => {
+  if (config.method?.toLowerCase() !== 'post' || config.data === undefined) {
+    return config;
+  }
+
+  const { serializedBody, stub } = buildQishuiBodySignature(config.data);
+  config.data = serializedBody;
+  config.headers.set('x-ss-stub', stub);
+  config.headers.set('x-luna-background-type', 'foreground');
+  config.headers.set('x-luna-is-background-req', '0');
+  config.headers.set('x-luna-is-local-user', '1');
+
+  return config;
+});
+
+/**
  * 合并汽水公共 query / headers
  */
 const buildConfig = (
@@ -148,7 +182,10 @@ export const get = async <R = any>(
   config: AxiosRequestConfig = {},
   options: QishuiRequestOptions = {},
 ) => {
-  const { data } = await axiosInstance.get<R>(url, buildConfig(auth, options, config));
+  const { data } = await axiosInstance.get<R>(
+    url,
+    buildConfig(auth, options, config),
+  );
   return data;
 };
 
