@@ -54,8 +54,6 @@ export class QishuiService {
         cover: getQishuiImageUrl(track?.album?.url_cover),
         lrc: `[ti:${trackInfo.track?.name}]\n[ar:${track?.artists?.map((artist) => artist.name).join(',')}]\n${krcToLrc(lyric?.content)}`,
         lrcText: krcToLrc(lyric?.content, 'text'),
-        // @ts-ignore
-        trackInfo: trackInfo,
       };
 
       if (!url_player_info) {
