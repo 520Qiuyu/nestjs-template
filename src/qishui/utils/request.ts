@@ -7,15 +7,11 @@ import type { AxiosRequestConfig } from 'axios';
 import axios from 'axios';
 
 export const QISHUI_BASE_URL = 'https://api.qishui.com';
-export const DEFAULT_VERSION_NAME = '3.5.2';
-export const DEFAULT_VERSION_CODE = '30050200';
-export const DEFAULT_IID = '1167017294437932';
-export const DEFAULT_USER_AGENT = `LunaPC/${DEFAULT_VERSION_NAME}(412998333)`;
+export const DEFAULT_VERSION_NAME = '3.4.0';
+export const DEFAULT_VERSION_CODE = '30040000';
+export const DEFAULT_IID = '3717874987061322';
+export const DEFAULT_USER_AGENT = `LunaPC/${DEFAULT_VERSION_NAME}(388267242)`;
 export const DEFAULT_TIMEOUT = 15000;
-
-/** mac 端 os_version（与客户端上报一致） */
-export const DEFAULT_OS_VERSION =
-  'Darwin Kernel Version 25.5.0: Tue Jun  9 22:26:22 PDT 2026; root:xnu-12377.121.10~1/RELEASE_ARM64_T8132';
 
 /**
  * 构建汽水公共 query 参数
@@ -47,15 +43,15 @@ export const buildQishuiQueryParams = (
     iid,
     version_name: versionName,
     version_code: versionCode,
-    channel: 'official',
+    channel: 'ug',
     build_mode: 'master',
     network_carrier: '',
     ac: 'wifi',
     tz_name: 'Asia/Shanghai',
     resolution: '',
-    device_platform: 'mac',
-    device_type: 'MacOS',
-    os_version: DEFAULT_OS_VERSION,
+    device_platform: 'windows',
+    device_type: 'Windows',
+    os_version: 'Windows 11 Pro',
     fp,
   };
 };
@@ -77,20 +73,7 @@ export const buildQishuiHeaders = (
     'x-helios': auth.xHelios || '',
     'x-medusa': auth.xMedusa || '',
     Cookie: auth.cookie,
-    // luna mac 端固定头
-    'x-luna-background-type': 'foreground',
-    'x-luna-is-background-req': '0',
-    'x-luna-is-local-user': '1',
-    'Accept-Encoding': 'gzip, deflate',
   };
-
-  // 以下为每次请求的动态签名头，存在才写入
-  if (auth.xArgus) headers['x-argus'] = auth.xArgus;
-  if (auth.xGorgon) headers['x-gorgon'] = auth.xGorgon;
-  if (auth.xLadon) headers['x-ladon'] = auth.xLadon;
-  if (auth.xKhronos) headers['x-khronos'] = auth.xKhronos;
-  if (auth.xSsStub) headers['x-ss-stub'] = auth.xSsStub;
-  if (auth.xTtTraceId) headers['x-tt-trace-id'] = auth.xTtTraceId;
 
   if (contentType) {
     headers['Content-Type'] = contentType;
