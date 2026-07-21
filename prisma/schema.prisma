@@ -206,6 +206,8 @@ model CardSecret {
   parsedCount Int       @default(0)
   // 认证信息ID
   authInfoId  String?
+  // 创建者
+  creatorId   String?
   // 创建时间
   ctime       DateTime  @default(now())
   // 更新时间
@@ -217,6 +219,7 @@ model CardSecret {
   // 备注
   remark      String?
 
+  @@index([creatorId])
   @@index([authInfoId])
 }
 

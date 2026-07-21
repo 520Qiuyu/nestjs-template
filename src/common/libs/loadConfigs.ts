@@ -1,5 +1,5 @@
 import * as dotenv from 'dotenv';
-import { Config } from 'src/types/config';
+import { Config } from '../../types/config';
 
 let result: Record<Config, string> | null = null;
 
@@ -15,6 +15,14 @@ export default function loadConfigs(): Record<Config, string> {
     ...common.parsed,
     ...otherEnv.parsed,
   } as Record<Config, string>;
+
+  // 进程环境变量优先（Docker / CI 注入可覆盖 .env 文件）
+  for (const key of Object.values(Config)) {
+    const value = process.env[key];
+    if (value !== undefined && value !== '') {
+      result[key] = value;
+    }
+  }
 
   console.log('\n========== 当前加载的环境变量 ==========');
   console.log(`运行环境: ${currentEnv}`);

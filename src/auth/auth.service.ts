@@ -58,12 +58,10 @@ export class AuthService {
       if (oldUser) {
         return generateError('该账号已存在!');
       }
-      // 加密密码
-      const encryptedPassword = encryptPassword(password);
       // 创建账号
       const user = await this.userService.createUser({
         account,
-        password: encryptedPassword,
+        password,
       });
       return generateOk(user);
     } catch (error) {

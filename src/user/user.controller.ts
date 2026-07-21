@@ -1,3 +1,4 @@
+import { CurrentUser } from '@/auth/decorator/current-user.decorator';
 import { AdminUpdateUserDto, BatchImportUsersDto, CreateUserDto, GetUserInfoQueryDto, ListUserQueryDto, UpdateUserInfoDto, UpdateUserStatusDto } from '@/user/dto/user-dto';
 import {
   Body,
@@ -15,7 +16,6 @@ import { UserService } from './user.service';
 import { ZodSerializerDto } from 'nestjs-zod';
 import { GetUserInfoResponseDto, UserListResponseDto } from './dto/user-vo';
 import { BatchImportResultDto } from '@/common/dto/batch-import.dto';
-import type { Request } from 'express';
 
 @Controller('user')
 export class UserController {
@@ -24,8 +24,8 @@ export class UserController {
   // 获取用户自己信息
   @Get('info/self')
   @ZodSerializerDto(GetUserInfoResponseDto)
-  getSelfUserInfo(@Req() req: Request) {
-    return this.userService.getUserInfo({ id: req.user!.id });
+  getSelfUserInfo(@CurrentUser('id') userId: string) {
+    return this.userService.getUserInfo({ id: userId });
   }
 
   // 获取用户信息
@@ -65,8 +65,11 @@ export class UserController {
 
   // 更新用户信息
   @Put('info')
-  updateUserInfo(@Body() body: UpdateUserInfoDto, @Req() req: Request) {
-    return this.userService.updateUserInfo(req.user!.id, body);
+  updateUserInfo(
+    @Body() body: UpdateUserInfoDto,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.userService.updateUserInfo(userId, body);
   }
 
   // 更新用户状态

@@ -2,7 +2,7 @@
 // npm install --save-dev prisma dotenv
 import { defineConfig } from 'prisma/config';
 import loadConfigs from './src/common/libs/loadConfigs';
-import { Config } from 'src/types/config';
+import { Config } from './src/types/config';
 
 const config = loadConfigs();
 

@@ -1,9 +1,8 @@
 import { Public } from '@/auth/decorator/auth.decorator';
 import {
-  GetPlaylistInfoQueryDto,
   GetSongInfoQueryDto,
-  GetSongPlayUrlQueryDto,
   ParseShareLinkQueryDto,
+  type PlaylistParseShareLinkQueryDto,
 } from '@/qishui/dto/qishui-dto';
 import { Controller, Get, Query } from '@nestjs/common';
 import { QishuiService } from './qishui.service';
@@ -21,7 +20,7 @@ export class QishuiController {
 
   // 歌单分享链接解析
   @Get('parse-playlist-share-link')
-  async parsePlaylistShareLink(@Query() query: ParseShareLinkQueryDto) {
+  async parsePlaylistShareLink(@Query() query: PlaylistParseShareLinkQueryDto) {
     return this.qishuiService.parsePlaylistShareLink(query);
   }
 

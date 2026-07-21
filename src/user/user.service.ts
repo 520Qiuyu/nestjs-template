@@ -1,4 +1,6 @@
 import type { RegisterRequestBodyDto } from '@/auth/dto/auth';
+import type { BatchImportResult } from '@/common/dto/batch-import.dto';
+import { PaginatedResultVo } from '@/common/dto/pagination.dto';
 import { encryptPassword } from '@/common/libs/encrypt';
 import type {
   AdminUpdateUserDto,
@@ -18,8 +20,6 @@ import { generateError, generateOk } from 'src/common/libs/response';
 import { PrismaService } from 'src/prisma.service';
 import type { Response, Status } from 'src/types/global';
 import type { UserInfoResponse } from './dto/user-vo';
-import { PaginatedResultVo } from '@/common/dto/pagination.dto';
-import type { BatchImportResult } from '@/common/dto/batch-import.dto';
 
 @Injectable()
 export class UserService {
@@ -73,7 +73,7 @@ export class UserService {
     const user = await this.prisma.user.create({
       data: {
         account,
-        password,
+        password: encryptPassword(password),
       },
     });
     // 创建初始用户配置
@@ -302,7 +302,9 @@ export class UserService {
   /**
    * 创建用户（管理员）
    */
-  async createUserAdmin(body: CreateUserDto): Promise<Response<UserInfoResponse>> {
+  async createUserAdmin(
+    body: CreateUserDto,
+  ): Promise<Response<UserInfoResponse>> {
     const { account, password, nickname, status, ...profileFields } = body;
     const exists = await this.findOne({ account });
     if (exists) {
@@ -400,7 +402,17 @@ export class UserService {
 
   /**  */
   private buildUserProfileData(item: ImportUserItem) {
-    const { nickname, avatar, email, phone, wechat, qq, gender, birthday, account } = item;
+    const {
+      nickname,
+      avatar,
+      email,
+      phone,
+      wechat,
+      qq,
+      gender,
+      birthday,
+      account,
+    } = item;
     return {
       nickname: nickname || `用户${account}`,
       avatar,
@@ -413,8 +425,11 @@ export class UserService {
     };
   }
 
-  private async upsertImportUser(item: ImportUserItem): Promise<Response<UserInfoResponse>> {
-    const { id, account, password, status, ctime, utime, ...profileInput } = item;
+  private async upsertImportUser(
+    item: ImportUserItem,
+  ): Promise<Response<UserInfoResponse>> {
+    const { id, account, password, status, ctime, utime, ...profileInput } =
+      item;
     const profileData = this.buildUserProfileData(item);
 
     if (id) {
@@ -505,7 +520,9 @@ export class UserService {
     });
   }
 
-  async importUsers(body: BatchImportUsersDto): Promise<Response<BatchImportResult>> {
+  async importUsers(
+    body: BatchImportUsersDto,
+  ): Promise<Response<BatchImportResult>> {
     const failedItems: BatchImportResult['failedItems'] = [];
     let success = 0;
 
