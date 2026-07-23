@@ -22,6 +22,7 @@ import type {
   ListPermissionRoleQueryDto,
   ListPermissionRoleResourceQueryDto,
   ListPermissionUserRoleQueryDto,
+  SyncPermissionRoleResourcesDto,
   UpdatePermissionResourceDto,
   UpdatePermissionRoleDto,
   UpdatePermissionRoleResourceDto,
@@ -433,6 +434,96 @@ export class PermissionService {
       data: { isDeleted: true },
     });
     return generateOk(deleted);
+  }
+
+  /**
+   * 一次性同步角色资源授权：按目标 resourceIds 对比现有关联，批量软删/恢复/创建。
+   *
+   * @example
+   * await permissionService.syncRoleResources({
+   *   roleId: 'role-1',
+   *   resourceIds: ['res-1', 'res-2'],
+   * });
+   */
+  async syncRoleResources(
+    body: SyncPermissionRoleResourcesDto,
+  ): Promise<Response<{ created: number; deleted: number }>> {
+    const role = await this.ensureRoleExists(body.roleId);
+    if (!role) {
+      return generateError('角色不存在');
+    }
+
+    const resourceIds = [...new Set(body.resourceIds)];
+    if (resourceIds.length > 0) {
+      const resources = await this.prisma.permissionResource.findMany({
+        where: { id: { in: resourceIds }, isDeleted: false },
+        select: { id: true },
+      });
+      if (resources.length !== resourceIds.length) {
+        return generateError('存在无效或不存在的资源');
+      }
+    }
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const existing = await tx.permissionRoleResource.findMany({
+        where: { roleId: body.roleId, isDeleted: false },
+      });
+      const existingSet = new Set(existing.map((item) => item.resourceId));
+      const targetSet = new Set(resourceIds);
+
+      const toDeleteIds = existing
+        .filter((item) => !targetSet.has(item.resourceId))
+        .map((item) => item.id);
+      const toCreateResourceIds = resourceIds.filter(
+        (resourceId) => !existingSet.has(resourceId),
+      );
+
+      if (toDeleteIds.length > 0) {
+        await tx.permissionRoleResource.updateMany({
+          where: { id: { in: toDeleteIds } },
+          data: { isDeleted: true },
+        });
+      }
+
+      let created = 0;
+      if (toCreateResourceIds.length > 0) {
+        const softDeleted = await tx.permissionRoleResource.findMany({
+          where: {
+            roleId: body.roleId,
+            resourceId: { in: toCreateResourceIds },
+            isDeleted: true,
+          },
+        });
+        const softDeletedResourceIdSet = new Set(
+          softDeleted.map((item) => item.resourceId),
+        );
+
+        if (softDeleted.length > 0) {
+          await tx.permissionRoleResource.updateMany({
+            where: { id: { in: softDeleted.map((item) => item.id) } },
+            data: { isDeleted: false },
+          });
+          created += softDeleted.length;
+        }
+
+        const needCreate = toCreateResourceIds.filter(
+          (resourceId) => !softDeletedResourceIdSet.has(resourceId),
+        );
+        if (needCreate.length > 0) {
+          await tx.permissionRoleResource.createMany({
+            data: needCreate.map((resourceId) => ({
+              roleId: body.roleId,
+              resourceId,
+            })),
+          });
+          created += needCreate.length;
+        }
+      }
+
+      return { created, deleted: toDeleteIds.length };
+    });
+
+    return generateOk(result);
   }
 
   async createUserRole(

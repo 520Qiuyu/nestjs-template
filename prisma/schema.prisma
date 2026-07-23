@@ -244,3 +244,44 @@ model AuthInfo {
   // 备注
   remark      String?
 }
+
+// 解析日志表
+model ParseLog {
+  // 唯一主键
+  id          String   @id @default(uuid())
+  // 使用的卡密（可空，如歌单解析）
+  cardSecret  String?
+  // 解析类型 song | playlist
+  type        String
+  // 目标名称（歌名 / 歌单名）
+  targetName  String   @default("")
+  // 目标 ID
+  targetId    String   @default("")
+  // 解析状态 success | fail
+  status      String
+  // 请求 IP
+  ip          String
+  // 请求路径
+  path        String
+  // 请求方法
+  method      String
+  // 操作用户账号（可为空）
+  userAccount String?
+  // 失败原因
+  errorMsg    String?
+  // 解析请求参数
+  parseParams Json?
+  // 耗时（毫秒）
+  durationMs  Int      @default(0)
+  // 是否删除
+  isDeleted   Boolean  @default(false)
+  // 创建时间
+  ctime       DateTime @default(now())
+  // 更新时间
+  utime       DateTime @default(now()) @updatedAt
+
+  @@index([ctime])
+  @@index([status])
+  @@index([type])
+  @@index([cardSecret])
+}

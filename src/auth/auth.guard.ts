@@ -80,21 +80,31 @@ export class AuthGuard implements CanActivate {
       this.logger.log('当前用户信息:', decoded);
       request.user = user;
 
+      // 3、是否是超级管理员
+      const userInfo = await this.userService.getUserInfo({ id: user.id });
+      if (
+        userInfo.code === 200 &&
+        userInfo.data?.roles.some((role) => role.code === 'super_admin')
+      ) {
+        this.logger.log('当前用户是超级管理员,放开所有权限。');
+        return true;
+      }
+
       // 3、判断有没有接口权限
-      // const apiPath = this.normalizeRequestPath(request.path);
-      // console.log(apiPath);
-      // const hasPermission = await this.permissionService.hasApiPermission(
-      //   user.id,
-      //   apiPath,
-      //   request.method.toUpperCase(),
-      // );
-      // if (!hasPermission) {
-      //   this.logger.warn(
-      //     `用户 ${user.account} 无权限访问 [${request.method}] ${apiPath}`,
-      //   );
-      //   response.status(403).json(generateForbidden('无权限访问该接口'));
-      //   return false;
-      // }
+      const apiPath = this.normalizeRequestPath(request.path);
+      console.log(apiPath);
+      const hasPermission = await this.permissionService.hasApiPermission(
+        user.id,
+        apiPath,
+        request.method.toUpperCase(),
+      );
+      if (!hasPermission) {
+        this.logger.warn(
+          `用户 ${user.account} 无权限访问 [${request.method}] ${apiPath}`,
+        );
+        response.status(403).json(generateForbidden('无权限访问该接口'));
+        return false;
+      }
 
       return true;
     } catch (error) {

@@ -14,6 +14,7 @@ export class ParseShareLinkQueryDto extends createZodDto(
 /** 歌单分享链接解析查询参数 */
 export const PlaylistParseShareLinkQuerySchema = z.object({
   shareLink: z.string().min(1, '分享链接不能为空'),
+  cardSecret: z.string().optional(),
 });
 /** 歌单分享链接解析查询参数类型 */
 export class PlaylistParseShareLinkQueryDto extends createZodDto(

@@ -10,6 +10,7 @@ import {
   ListPermissionRoleQueryDto,
   ListPermissionRoleResourceQueryDto,
   ListPermissionUserRoleQueryDto,
+  SyncPermissionRoleResourcesDto,
   UpdatePermissionResourceDto,
   UpdatePermissionRoleDto,
   UpdatePermissionRoleResourceDto,
@@ -25,6 +26,7 @@ import {
   PermissionRoleResponseDto,
   PermissionUserRoleListResponseDto,
   PermissionUserRoleResponseDto,
+  SyncPermissionRoleResourcesResponseDto,
 } from '@/permission/dto/permission-vo';
 import {
   Body,
@@ -145,6 +147,13 @@ export class PermissionController {
   @ZodSerializerDto(PermissionRoleResourceResponseDto)
   createRoleResource(@Body() body: CreatePermissionRoleResourceDto) {
     return this.permissionService.createRoleResource(body);
+  }
+
+  // 同步角色资源授权（一次请求完成增删）
+  @Post('role-resource/sync')
+  @ZodSerializerDto(SyncPermissionRoleResourcesResponseDto)
+  syncRoleResources(@Body() body: SyncPermissionRoleResourcesDto) {
+    return this.permissionService.syncRoleResources(body);
   }
 
   // 获取角色资源关联详情

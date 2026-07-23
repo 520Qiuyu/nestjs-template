@@ -128,6 +128,16 @@ export class ListPermissionRoleResourceQueryDto extends createZodDto(
   ListPermissionRoleResourceQuerySchema,
 ) {}
 
+/** 同步角色资源授权请求体 */
+export const SyncPermissionRoleResourcesSchema = z.object({
+  roleId: z.string().min(1),
+  resourceIds: z.array(z.string().min(1)),
+});
+/** 同步角色资源授权请求体类型 */
+export class SyncPermissionRoleResourcesDto extends createZodDto(
+  SyncPermissionRoleResourcesSchema,
+) {}
+
 /** 创建用户角色关联请求体 */
 export const CreatePermissionUserRoleSchema = z.object({
   userId: z.string().min(1),

@@ -19,8 +19,12 @@ export const CardSecretAuthInfoSchema = z.object({
 /** 卡密列表查询参数 */
 export const ListCardSecretQuerySchema = PaginationQuerySchema.extend({
   keyword: z.string().optional(),
-  type: CardSecretTypeSchema.optional(),
-  status: CardSecretStatusSchema.optional(),
+  /** 类型，支持多选：time,count */
+  type: z.string().optional(),
+  /** 状态，支持多选：normal,disabled */
+  status: z.string().optional(),
+  /** 创建者，支持多选：id1,id2；仅超级管理员或管理员可用 */
+  createUserId: z.string().optional(),
 });
 /** 卡密列表查询参数类型 */
 export class ListCardSecretQueryDto extends createZodDto(

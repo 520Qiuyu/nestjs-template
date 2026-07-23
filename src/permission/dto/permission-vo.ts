@@ -84,6 +84,17 @@ export class PermissionRoleResourceListResponseDto extends createZodDto(
   createResponseSchema(PaginatedResultSchema(PermissionRoleResourceItemSchema)),
 ) {}
 
+/** 同步角色资源授权结果 */
+export const SyncPermissionRoleResourcesResultSchema = z.object({
+  created: z.number(),
+  deleted: z.number(),
+});
+
+/** 同步角色资源授权响应体类型 */
+export class SyncPermissionRoleResourcesResponseDto extends createZodDto(
+  createResponseSchema(SyncPermissionRoleResourcesResultSchema),
+) {}
+
 /** 用户角色关联列表响应体类型 */
 export class PermissionUserRoleListResponseDto extends createZodDto(
   createResponseSchema(PaginatedResultSchema(PermissionUserRoleItemSchema)),

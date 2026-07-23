@@ -9,6 +9,9 @@ import type { MusicInfo } from '@/types/qishui/song';
 import { Injectable } from '@nestjs/common';
 import { getQishuiSongPlayUrl, getQishuiTrack } from './apis/song';
 import { CardSecretService } from './cardSecret/card-secret.service';
+import type { CreateParseLogInput } from './logs/dto/logs.dto';
+import { LogsService } from './logs/logs.service';
+import type { RequestMeta } from '@/common/decorator/request-meta.decorator';
 import { getQishuiImageUrl, parseLink } from './utils';
 import { parsePlaylistInfo } from './utils/platlist';
 import { krcToLrc, parseMusicInfo } from './utils/song';
@@ -25,7 +28,24 @@ const TEMP_AUTH_INFO: QishuiAuthParams = {
 
 @Injectable()
 export class QishuiService {
-  constructor(private readonly cardSecretService: CardSecretService) {}
+  constructor(
+    private readonly cardSecretService: CardSecretService,
+    private readonly logsService: LogsService,
+  ) {}
+
+  /**
+   * 异步写入解析日志，失败不影响业务响应
+   * @example
+   * ```ts
+   * this.safeCreateParseLog({ type: 'song', status: 'success', ... });
+   * ```
+   */
+  private safeCreateParseLog(payload: CreateParseLogInput) {
+    void this.logsService.create(payload).catch((error) => {
+      console.error('[ParseLog] 写入失败', error);
+    });
+  }
+
   /**
    * 根据 trackId 获取歌曲完整信息
    * @example
@@ -84,65 +104,166 @@ export class QishuiService {
   }
 
   /** 歌曲分享链接解析 */
-  async parseSongShareLink(query: ParseShareLinkQueryDto) {
-    const cardSecret = await this.cardSecretService.validateSecret(
-      query.cardSecret,
-      {
-        checkStatus: true,
-        checkExpire: true,
-        checkParseLimit: true,
-      },
-    );
-    if (cardSecret !== true) {
-      return generateError(cardSecret);
-    }
-    const shareUrl = parseLink(query.shareLink);
-    const html = await fetch(shareUrl).then((res) => res.text());
-    const musicInfo = await parseMusicInfo(html);
+  async parseSongShareLink(query: ParseShareLinkQueryDto, meta: RequestMeta) {
+    const start = Date.now();
+    let status: CreateParseLogInput['status'] = 'success';
+    let errorMsg: string | null = null;
+    let targetName = '';
+    let targetId = '';
 
-    if (!musicInfo.trackId) {
-      return generateOk({ shareLink: query.shareLink, musicInfo });
-    }
+    try {
+      const cardSecret = await this.cardSecretService.validateSecret(
+        query.cardSecret,
+        {
+          checkStatus: true,
+          checkExpire: true,
+          checkParseLimit: true,
+        },
+      );
+      if (cardSecret !== true) {
+        status = 'fail';
+        errorMsg = cardSecret;
+        return generateError(cardSecret);
+      }
 
-    const fullInfo = await this.parseSongInfo(musicInfo.trackId);
-    if (fullInfo?.urls?.length) {
-      this.cardSecretService.increaseParseCount(query.cardSecret);
+      const shareUrl = parseLink(query.shareLink);
+      const html = await fetch(shareUrl).then((res) => res.text());
+      const musicInfo = await parseMusicInfo(html);
+      targetName = musicInfo.title || '';
+      targetId = musicInfo.trackId || '';
+
+      if (!musicInfo.trackId) {
+        return generateOk({ shareLink: query.shareLink, musicInfo });
+      }
+
+      const fullInfo = await this.parseSongInfo(musicInfo.trackId);
+      if (fullInfo?.title) targetName = fullInfo.title;
+      if (fullInfo?.trackId) targetId = fullInfo.trackId;
+
+      if (fullInfo?.urls?.length) {
+        this.cardSecretService.increaseParseCount(query.cardSecret);
+      }
+      return generateOk({ shareLink: query.shareLink, musicInfo, fullInfo });
+    } catch (error) {
+      status = 'fail';
+      errorMsg =
+        error instanceof Error ? error.message : '歌曲分享链接解析失败';
+      console.error('解析歌曲分享链接失败:', error);
+      return generateError(errorMsg);
+    } finally {
+      this.safeCreateParseLog({
+        cardSecret: query.cardSecret || null,
+        type: 'song',
+        targetName,
+        targetId,
+        status,
+        ip: meta.ip,
+        path: meta.path,
+        method: meta.method,
+        errorMsg,
+        parseParams: { ...query },
+        durationMs: Date.now() - start,
+      });
     }
-    return generateOk({ shareLink: query.shareLink, musicInfo, fullInfo });
   }
 
   /** 歌单分享链接解析 */
-  async parsePlaylistShareLink(query: PlaylistParseShareLinkQueryDto) {
+  async parsePlaylistShareLink(
+    query: PlaylistParseShareLinkQueryDto,
+    meta: RequestMeta,
+  ) {
+    const start = Date.now();
+    let status: CreateParseLogInput['status'] = 'success';
+    let errorMsg: string | null = null;
+    let targetName = '';
+    let targetId = '';
+    const { cardSecret, shareLink } = query;
     try {
       const shareUrl = parseLink(query.shareLink);
       const html = await fetch(shareUrl).then((res) => res.text());
       const routerData = await parsePlaylistInfo(html);
+      targetName = routerData.title || '';
+      targetId = String(routerData.id || '');
       return generateOk({ shareLink: query.shareLink, routerData });
     } catch (error) {
+      status = 'fail';
+      errorMsg =
+        error instanceof Error ? error.message : '解析歌单分享链接失败';
       console.error('解析歌单分享链接失败:', error);
-      return generateError(
-        error instanceof Error ? error.message : '解析歌单分享链接失败',
-      );
+      return generateError(errorMsg);
+    } finally {
+      this.safeCreateParseLog({
+        cardSecret: cardSecret || null,
+        type: 'playlist',
+        targetName,
+        targetId,
+        status,
+        ip: meta.ip,
+        path: meta.path,
+        method: meta.method,
+        errorMsg,
+        parseParams: { ...query },
+        durationMs: Date.now() - start,
+      });
     }
   }
 
   /** 根据歌曲 id 获取歌曲信息 */
-  async getSongInfo(query: GetSongInfoQueryDto) {
-    const cardSecret = await this.cardSecretService.validateSecret(
-      query.cardSecret,
-      {
-        checkStatus: true,
-        checkExpire: true,
-        checkParseLimit: true,
-      },
-    );
-    if (cardSecret !== true) {
-      return generateError(cardSecret);
+  async getSongInfo(query: GetSongInfoQueryDto, meta: RequestMeta) {
+    const start = Date.now();
+    let status: CreateParseLogInput['status'] = 'success';
+    let errorMsg: string | null = null;
+    let targetName = '';
+    let targetId = query.songId || '';
+
+    try {
+      const cardSecret = await this.cardSecretService.validateSecret(
+        query.cardSecret,
+        {
+          checkStatus: true,
+          checkExpire: true,
+          checkParseLimit: true,
+        },
+      );
+      if (cardSecret !== true) {
+        status = 'fail';
+        errorMsg = cardSecret;
+        return generateError(cardSecret);
+      }
+
+      const fullInfo = await this.parseSongInfo(query.songId);
+      targetName = fullInfo?.title || '';
+      targetId = fullInfo?.trackId || query.songId;
+
+      if (!fullInfo) {
+        status = 'fail';
+        errorMsg = '获取歌曲信息失败';
+        return generateError(errorMsg);
+      }
+
+      if (fullInfo?.urls?.length) {
+        this.cardSecretService.increaseParseCount(query.cardSecret);
+      }
+      return generateOk({ songId: query.songId, fullInfo });
+    } catch (error) {
+      status = 'fail';
+      errorMsg = error instanceof Error ? error.message : '获取歌曲信息失败';
+      console.error('获取歌曲信息失败:', error);
+      return generateError(errorMsg);
+    } finally {
+      this.safeCreateParseLog({
+        cardSecret: query.cardSecret || null,
+        type: 'song',
+        targetName,
+        targetId,
+        status,
+        ip: meta.ip,
+        path: meta.path,
+        method: meta.method,
+        errorMsg,
+        parseParams: { ...query },
+        durationMs: Date.now() - start,
+      });
     }
-    const fullInfo = await this.parseSongInfo(query.songId);
-    if (fullInfo?.urls?.length) {
-      this.cardSecretService.increaseParseCount(query.cardSecret);
-    }
-    return generateOk({ songId: query.songId, fullInfo });
   }
 }

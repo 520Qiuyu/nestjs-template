@@ -1,5 +1,15 @@
+import { Public } from '@/auth/decorator/auth.decorator';
 import { CurrentUser } from '@/auth/decorator/current-user.decorator';
-import { AdminUpdateUserDto, BatchImportUsersDto, CreateUserDto, GetUserInfoQueryDto, ListUserQueryDto, UpdateUserInfoDto, UpdateUserStatusDto } from '@/user/dto/user-dto';
+import { BatchImportResultDto } from '@/common/dto/batch-import.dto';
+import {
+  AdminUpdateUserDto,
+  BatchImportUsersDto,
+  CreateUserDto,
+  GetUserInfoQueryDto,
+  ListUserQueryDto,
+  UpdateUserInfoDto,
+  UpdateUserStatusDto,
+} from '@/user/dto/user-dto';
 import {
   Body,
   Controller,
@@ -9,13 +19,10 @@ import {
   Post,
   Put,
   Query,
-  Req,
-  UseGuards,
 } from '@nestjs/common';
-import { UserService } from './user.service';
 import { ZodSerializerDto } from 'nestjs-zod';
 import { GetUserInfoResponseDto, UserListResponseDto } from './dto/user-vo';
-import { BatchImportResultDto } from '@/common/dto/batch-import.dto';
+import { UserService } from './user.service';
 
 @Controller('user')
 export class UserController {

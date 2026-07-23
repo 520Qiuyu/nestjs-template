@@ -1,7 +1,9 @@
 import type { PaginatedResultVo } from '@/common/dto/pagination.dto';
 import { generateError, generateOk } from '@/common/libs/response';
 import { PrismaService } from '@/prisma.service';
+import { UserService } from '@/user/user.service';
 import { Injectable } from '@nestjs/common';
+import type { CardSecret, User } from '@prisma/client';
 import { randomBytes } from 'crypto';
 import type {
   CreateCardSecretDto,
@@ -9,7 +11,6 @@ import type {
   UpdateCardSecretDto,
   UpdateCardSecretStatusDto,
 } from './dto/card-secret.dto';
-import type { User } from '@prisma/client';
 
 type AuthInfoPayload = {
   deviceId: string;
@@ -20,7 +21,10 @@ type AuthInfoPayload = {
 
 @Injectable()
 export class CardSecretService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly userService: UserService,
+  ) {}
 
   /**
    * 生成卡密字符串
@@ -121,45 +125,26 @@ export class CardSecretService {
   }
 
   /**
-   * 格式化列表项（补充未解析数量与认证信息）
+   * 格式化列表项（补充未解析数量、认证信息与创建者）
    */
   private formatListItem(
-    item: {
-      id: string;
-      secret: string;
-      type: string;
-      expireTime: Date | null;
-      parseLimit: number;
-      parsedCount: number;
-      authInfoId: string | null;
-      status: string;
-      remark: string | null;
-      ctime: Date;
-      utime: Date;
-    },
+    item: CardSecret,
     authInfoMap: Map<string, AuthInfoPayload>,
+    creatorAccountMap?: Map<string, string>,
   ) {
     const unparsedCount = Math.max(0, item.parseLimit - item.parsedCount);
     const authInfo = item.authInfoId
       ? authInfoMap.get(item.authInfoId)
       : undefined;
+    const creatorAccount = item.creatorId
+      ? (creatorAccountMap?.get(item.creatorId) ?? null)
+      : null;
 
     return {
-      id: item.id,
-      secret: item.secret,
-      /** 兼容前端「卡号」展示 */
-      cardNo: item.secret,
-      type: item.type,
-      expireTime: item.expireTime,
-      parseLimit: item.parseLimit,
-      parsedCount: item.parsedCount,
+      ...item,
       unparsedCount,
-      authInfoId: item.authInfoId,
       authInfo: authInfo ?? null,
-      status: item.status,
-      remark: item.remark,
-      ctime: item.ctime,
-      utime: item.utime,
+      createUser: creatorAccount ? { account: creatorAccount } : null,
     };
   }
 
@@ -193,8 +178,60 @@ export class CardSecretService {
     return created.id;
   }
 
+  /**
+   * 获取卡密创建者下拉选项（按 creatorId 去重）
+   * @example
+   * ```ts
+   * const res = await this.getCreateUserOptions(user);
+   * // [{ value: 'xxx', label: 'admin', nickname: '管理员' }]
+   * ```
+   */
+  async getCreateUserOptions(user: User) {
+    const canViewAll = await this.userService.isAdminOrSuperAdmin(user.id);
+    const rows = await this.prisma.cardSecret.findMany({
+      where: {
+        isDeleted: false,
+        creatorId: { not: null },
+        ...(canViewAll ? {} : { creatorId: user.id }),
+      },
+      select: { creatorId: true },
+      distinct: ['creatorId'],
+    });
+
+    const creatorIds = rows
+      .map((row) => row.creatorId)
+      .filter((id): id is string => Boolean(id));
+
+    if (!creatorIds.length) {
+      return generateOk([]);
+    }
+
+    const [users, profiles] = await Promise.all([
+      this.prisma.user.findMany({
+        where: { id: { in: creatorIds }, isDeleted: false },
+        select: { id: true, account: true },
+      }),
+      this.prisma.userProfile.findMany({
+        where: { userId: { in: creatorIds } },
+        select: { userId: true, nickname: true },
+      }),
+    ]);
+
+    const nicknameMap = new Map(
+      profiles.map((profile) => [profile.userId, profile.nickname]),
+    );
+
+    const options = users.map((item) => ({
+      value: item.id,
+      label: item.account,
+      nickname: nicknameMap.get(item.id) ?? null,
+    }));
+
+    return generateOk(options);
+  }
+
   /** 获取卡密列表 */
-  async list(query: ListCardSecretQueryDto) {
+  async list(query: ListCardSecretQueryDto, user: User) {
     const {
       pageNum = 1,
       pageSize = 10,
@@ -203,6 +240,7 @@ export class CardSecretService {
       keyword,
       type,
       status,
+      createUserId,
     } = query;
 
     const allowedSortFields = {
@@ -220,11 +258,29 @@ export class CardSecretService {
         ? (sortField as keyof typeof allowedSortFields)
         : 'ctime';
 
+    /** 将逗号分隔的多选查询参数切割为数组 */
+    const splitCsv = (value?: string) =>
+      value
+        ?.split(',')
+        .map((item) => item.trim())
+        .filter(Boolean) ?? [];
+
+    const typeList = splitCsv(type);
+    const statusList = splitCsv(status);
+    const createUserIdList = splitCsv(createUserId);
+
+    const canViewAll = await this.userService.isAdminOrSuperAdmin(user.id);
     const trimmedKeyword = keyword?.trim();
     const where = {
       isDeleted: false,
-      ...(type ? { type } : {}),
-      ...(status ? { status } : {}),
+      // 非超管/管理员只能查看自己创建的卡密
+      ...(canViewAll
+        ? createUserIdList.length
+          ? { creatorId: { in: createUserIdList } }
+          : {}
+        : { creatorId: user.id }),
+      ...(typeList.length ? { type: { in: typeList } } : {}),
+      ...(statusList.length ? { status: { in: statusList } } : {}),
       ...(trimmedKeyword
         ? {
             OR: [
@@ -276,11 +332,27 @@ export class CardSecretService {
           .filter((id): id is string => Boolean(id)),
       ),
     ];
-    const authInfos = authInfoIds.length
-      ? await this.prisma.authInfo.findMany({
-          where: { id: { in: authInfoIds }, isDeleted: false },
-        })
-      : [];
+    const creatorIds = [
+      ...new Set(
+        rows
+          .map((row) => row.creatorId)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    ];
+
+    const [authInfos, creators] = await Promise.all([
+      authInfoIds.length
+        ? this.prisma.authInfo.findMany({
+            where: { id: { in: authInfoIds }, isDeleted: false },
+          })
+        : Promise.resolve([]),
+      creatorIds.length
+        ? this.prisma.user.findMany({
+            where: { id: { in: creatorIds }, isDeleted: false },
+            select: { id: true, account: true },
+          })
+        : Promise.resolve([]),
+    ]);
 
     const authInfoMap = new Map<string, AuthInfoPayload>();
     for (const info of authInfos) {
@@ -300,7 +372,15 @@ export class CardSecretService {
       }
     }
 
-    const list = rows.map((row) => this.formatListItem(row, authInfoMap));
+    const creatorAccountMap = new Map(
+      creators.map(
+        (creator) => [creator.id, creator.account] as [string, string],
+      ),
+    );
+
+    const list = rows.map((row) =>
+      this.formatListItem(row, authInfoMap, creatorAccountMap),
+    );
     const result: PaginatedResultVo<(typeof list)[number]> & {
       unusedCount: number;
       usedCount: number;
@@ -350,7 +430,18 @@ export class CardSecretService {
       }
     }
 
-    return generateOk(this.formatListItem(row, authInfoMap));
+    const creatorAccountMap = new Map<string, string>();
+    if (row.creatorId) {
+      const creator = await this.prisma.user.findFirst({
+        where: { id: row.creatorId, isDeleted: false },
+        select: { id: true, account: true },
+      });
+      if (creator) {
+        creatorAccountMap.set(creator.id, creator.account);
+      }
+    }
+
+    return generateOk(this.formatListItem(row, authInfoMap, creatorAccountMap));
   }
 
   /**
@@ -427,8 +518,12 @@ export class CardSecretService {
       authInfoMap.set(authInfoId, body.authInfo);
     }
 
+    const creatorAccountMap = new Map([[user.id, user.account]]);
+
     return generateOk({
-      list: created.map((row) => this.formatListItem(row, authInfoMap)),
+      list: created.map((row) =>
+        this.formatListItem(row, authInfoMap, creatorAccountMap),
+      ),
       count: created.length,
     });
   }

@@ -25,8 +25,17 @@ export class CardSecretController {
 
   // 获取卡密列表
   @Get()
-  list(@Query() query: ListCardSecretQueryDto) {
-    return this.cardSecretService.list(query);
+  list(
+    @Query() query: ListCardSecretQueryDto,
+    @CurrentUser() user: User,
+  ) {
+    return this.cardSecretService.list(query, user);
+  }
+
+  // 获取卡密列表 创建者下拉
+  @Get('create-user-options')
+  getCreateUserOptions(@CurrentUser() user: User) {
+    return this.cardSecretService.getCreateUserOptions(user);
   }
 
   // 获取卡密详情（根据卡密）——需放在 :id 之前，避免被当成 id

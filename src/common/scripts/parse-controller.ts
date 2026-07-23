@@ -10,9 +10,24 @@ const HTTP_METHODS = ['Get', 'Post', 'Put', 'Delete', 'Patch'] as const;
 
 function toSnakeCase(value: string): string {
   return value
+    .replace(/-/g, '_')
     .replace(/([A-Z])/g, '_$1')
     .toLowerCase()
-    .replace(/^_/, '');
+    .replace(/^_/, '')
+    .replace(/_+/g, '_');
+}
+
+/**
+ * 根据 Controller 前缀与方法名生成权限 code
+ * @example
+ * ```ts
+ * buildRouteCode('qishui/logs', 'getById') // 'qishui_logs_get_by_id'
+ * ```
+ */
+function buildRouteCode(controllerPrefix: string, methodName: string): string {
+  const prefixCode = toSnakeCase(controllerPrefix.replace(/\//g, '_'));
+  const methodCode = toSnakeCase(methodName);
+  return prefixCode ? `${prefixCode}_${methodCode}` : methodCode;
 }
 
 function joinRoute(prefix: string, routePath: string): string {
@@ -100,12 +115,11 @@ export function parseControllerRoutes(source: string): ParsedRoute[] {
     const label = comment || methodName;
     routes.push({
       name: label,
-      code: toSnakeCase(methodName),
+      code: buildRouteCode(controllerPrefix, methodName),
       remark: label,
       url: joinRoute(controllerPrefix, routePath),
       method: httpMethod,
-    });
-  }
+    });  }
 
   return routes.filter((route) =>
     HTTP_METHODS.some((method) => route.method === method.toUpperCase()),
