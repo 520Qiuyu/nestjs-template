@@ -3,7 +3,7 @@ import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';
 
 /** 解析日志类型 */
-export const ParseLogTypeSchema = z.enum(['song', 'playlist']);
+export const ParseLogTypeSchema = z.enum(['song', 'playlist', 'video']);
 
 /** 解析日志状态 */
 export const ParseLogStatusSchema = z.enum(['success', 'fail']);

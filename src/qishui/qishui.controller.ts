@@ -2,6 +2,7 @@ import { Public } from '@/auth/decorator/auth.decorator';
 import { RequestMeta } from '@/common/decorator/request-meta.decorator';
 import {
   GetSongInfoQueryDto,
+  GetVideoInfoQueryDto,
   ParseShareLinkQueryDto,
   PlaylistParseShareLinkQueryDto,
 } from '@/qishui/dto/qishui-dto';
@@ -38,5 +39,14 @@ export class QishuiController {
     @RequestMeta() meta: RequestMeta,
   ) {
     return this.qishuiService.getSongInfo(query, meta);
+  }
+
+  // 根据视频id获取视频歌曲信息
+  @Get('get-video-info')
+  async getVideoInfo(
+    @Query() query: GetVideoInfoQueryDto,
+    @RequestMeta() meta: RequestMeta,
+  ) {
+    return this.qishuiService.getVideoInfo(query, meta);
   }
 }

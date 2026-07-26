@@ -63,6 +63,40 @@ export type TrackPageData = {
   audioWithLyricsOption?: AudioWithLyricsOption;
 };
 
+/** ugc 视频分享页 videoOptions */
+export type UgcVideoOptions = {
+  hasCopyright?: boolean;
+  metaURL?: string;
+  video_id?: string;
+  status_code?: number;
+  /** 可播放地址 */
+  url?: string;
+  /** 时长（秒） */
+  duration?: number;
+  artistName?: string;
+  artistThumbAvatarArr?: string[];
+  videoName?: string;
+  coverURL?: string;
+  group_playable_level?: string;
+  group_download_level?: string;
+  previewStart?: number;
+  previewEnd?: number;
+  offsetStart?: number;
+  offsetDuration?: number;
+  firstFrameURL?: string;
+  width?: number;
+  height?: number;
+};
+
+/** ugc 视频分享页 loaderData.ugc_video_page */
+export type UgcVideoPageData = {
+  video_id?: string;
+  video_type?: string;
+  videoOptions?: UgcVideoOptions;
+  isMobile?: boolean;
+  luna_share_node_vid?: string;
+};
+
 export type AudioFileFormat = {
   /** 文件扩展名，不包含点，例如 mp3、m4a */
   ext: string;

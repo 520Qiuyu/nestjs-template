@@ -1,3 +1,5 @@
+import type { PlaylistVideo } from './platlist';
+
 /** 汽水图片资源 */
 export interface QishuiImage {
   /** 图片 URI */
@@ -140,6 +142,8 @@ export interface QishuiTrackPlayer {
 export interface GetQishuiTrackResponse {
   lyric?: QishuiLyric;
   track?: QishuiTrack;
+  /** 视频实体（media_type=video 时返回） */
+  video?: PlaylistVideo;
   track_player?: QishuiTrackPlayer;
   /** 接口结果过期时间（秒级时间戳） */
   expire_at?: number;

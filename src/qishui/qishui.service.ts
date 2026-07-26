@@ -1,13 +1,18 @@
 import { generateError, generateOk } from '@/common/libs/response';
 import type {
   GetSongInfoQueryDto,
+  GetVideoInfoQueryDto,
   ParseShareLinkQueryDto,
   PlaylistParseShareLinkQueryDto,
 } from '@/qishui/dto/qishui-dto';
 import type { QishuiAuthParams } from '@/types/qishui';
 import type { MusicInfo } from '@/types/qishui/song';
 import { Injectable } from '@nestjs/common';
-import { getQishuiSongPlayUrl, getQishuiTrack } from './apis/song';
+import {
+  getQishuiSongPlayUrl,
+  getQishuiTrack,
+  getQishuiVideo,
+} from './apis/song';
 import { CardSecretService } from './cardSecret/card-secret.service';
 import type { CreateParseLogInput } from './logs/dto/logs.dto';
 import { LogsService } from './logs/logs.service';
@@ -252,6 +257,121 @@ export class QishuiService {
       this.safeCreateParseLog({
         cardSecret: query.cardSecret || null,
         type: 'song',
+        targetName,
+        targetId,
+        status,
+        ip: meta.ip,
+        path: meta.path,
+        method: meta.method,
+        errorMsg,
+        parseParams: { ...query },
+        durationMs: Date.now() - start,
+      });
+    }
+  }
+
+  /**
+   * 根据 videoId 获取视频歌曲完整信息
+   * @example
+   * ```ts
+   * const fullInfo = await this.parseVideoInfo('7639280897337855278');
+   * ```
+   */
+  async parseVideoInfo(videoId: string): Promise<MusicInfo | null> {
+    try {
+      const page = await getQishuiVideo(videoId);
+      const options = page.videoOptions;
+      const title = options?.videoName || '未知歌曲';
+      const artist = options?.artistName || '未知歌手';
+      const playUrl = options?.url
+        ? encodeURI(decodeURI(options.url))
+        : '';
+
+      return {
+        // @ts-ignore
+        page,
+        trackId: page.video_id || options?.video_id || videoId,
+        title,
+        artist,
+        artists: artist
+          ? [
+              {
+                id: '',
+                name: artist,
+                avatar: options?.artistThumbAvatarArr?.[0],
+              },
+            ]
+          : [],
+        album: '未知专辑',
+        cover:
+          options?.coverURL ||
+          options?.metaURL ||
+          options?.firstFrameURL ||
+          'https://via.placeholder.com/120',
+        urls: playUrl
+          ? [
+              {
+                url: playUrl,
+                quality: 'medium',
+                size: 0,
+                format: 'mp4',
+                encryptionMethod: '',
+              },
+            ]
+          : [],
+      };
+    } catch (error) {
+      console.error('获取视频信息失败:', error);
+      return null;
+    }
+  }
+
+  /** 根据视频 id 获取视频歌曲信息 */
+  async getVideoInfo(query: GetVideoInfoQueryDto, meta: RequestMeta) {
+    const start = Date.now();
+    let status: CreateParseLogInput['status'] = 'success';
+    let errorMsg: string | null = null;
+    let targetName = '';
+    let targetId = query.videoId || '';
+
+    try {
+      const cardSecret = await this.cardSecretService.validateSecret(
+        query.cardSecret,
+        {
+          checkStatus: true,
+          checkExpire: true,
+          checkParseLimit: true,
+        },
+      );
+      if (cardSecret !== true) {
+        status = 'fail';
+        errorMsg = cardSecret;
+        return generateError(cardSecret);
+      }
+
+      const fullInfo = await this.parseVideoInfo(query.videoId);
+      targetName = fullInfo?.title || '';
+      targetId = fullInfo?.trackId || query.videoId;
+
+      if (!fullInfo) {
+        status = 'fail';
+        errorMsg = '获取视频信息失败';
+        return generateError(errorMsg);
+      }
+
+      if (fullInfo?.urls?.length) {
+        this.cardSecretService.increaseParseCount(query.cardSecret);
+      }
+      return generateOk({ videoId: query.videoId, fullInfo });
+    } catch (error) {
+      status = 'fail';
+      errorMsg = error instanceof Error ? error.message : '获取视频信息失败';
+      console.error('获取视频信息失败:', error);
+      return generateError(errorMsg);
+    } finally {
+      this.safeCreateParseLog({
+        cardSecret: query.cardSecret || null,
+        type: 'video',
         targetName,
         targetId,
         status,

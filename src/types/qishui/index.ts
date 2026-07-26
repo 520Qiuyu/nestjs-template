@@ -1,5 +1,5 @@
 import { PlaylistPageData } from './platlist';
-import { TrackPageData } from './song';
+import { TrackPageData, UgcVideoPageData } from './song';
 
 /** 汽水接口认证参数 */
 export interface QishuiAuthParams {
@@ -68,6 +68,8 @@ export type RouterData = {
   loaderData?: {
     track_page?: TrackPageData;
     playlist_page?: PlaylistPageData;
+    ugc_video_page?: UgcVideoPageData;
+    ugc_video_layout?: unknown;
   };
 };
 

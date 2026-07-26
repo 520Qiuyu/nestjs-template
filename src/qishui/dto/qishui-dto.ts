@@ -29,6 +29,16 @@ export const GetSongInfoQuerySchema = z.object({
 /** 根据歌曲 id 查询参数类型 */
 export class GetSongInfoQueryDto extends createZodDto(GetSongInfoQuerySchema) {}
 
+/** 根据视频 id 查询参数 */
+export const GetVideoInfoQuerySchema = z.object({
+  videoId: z.string().min(1, '视频 id 不能为空'),
+  cardSecret: z.string(),
+});
+/** 根据视频 id 查询参数类型 */
+export class GetVideoInfoQueryDto extends createZodDto(
+  GetVideoInfoQuerySchema,
+) {}
+
 /** 根据歌单 id 查询参数 */
 export const GetPlaylistInfoQuerySchema = z.object({
   playlistId: z.string().min(1, '歌单 id 不能为空'),

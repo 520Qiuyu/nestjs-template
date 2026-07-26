@@ -1,11 +1,17 @@
-import type { PlaylistMusicInfo, PlaylistTrack } from '@/types/qishui/platlist';
+import type {
+  PlaylistMusicInfo,
+  PlaylistTrack,
+  PlaylistVideo,
+} from '@/types/qishui/platlist';
 import { getQishuiImageUrl, parseRouterData } from '.';
 
 export const getQishuiMusicUrl = (id: string) => {
   return `https://music.douyin.com/qishui/share/track?track_id=${id}`;
 };
 
-const formatPlaylistArtists = (artists?: PlaylistTrack['artists']) => {
+const formatPlaylistArtists = (
+  artists?: Array<{ name?: string }> | null,
+) => {
   const artistNames =
     artists?.map((artist) => artist.name).filter(Boolean) || [];
 
@@ -53,6 +59,7 @@ const formatPlaylistMusicInfo = (
   const isPreviewOnly = isPlaylistPreviewOnlyTrack(track);
 
   return {
+    type: 'track',
     id: track.id,
     title: track.name || '未知歌曲',
     artist: formatPlaylistArtists(track.artists),
@@ -66,6 +73,39 @@ const formatPlaylistMusicInfo = (
     collectCount: track.stats?.count_collected,
     commentCount: track.stats?.count_comment,
     shareCount: track.stats?.count_shared,
+  } as any;
+};
+
+/**
+ * 将歌单内视频实体转换为页面可复用的音乐信息。
+ *
+ * @example
+ * const musicInfo = formatPlaylistVideoMusicInfo(media.entity?.video);
+ */
+const formatPlaylistVideoMusicInfo = (
+  video?: PlaylistVideo,
+): PlaylistMusicInfo | null => {
+  if (!video) {
+    return null;
+  }
+
+  return {
+    type: 'video',
+    id: video.video_id || video.vid,
+    title: video.title || video.description || '未知歌曲',
+    artist: formatPlaylistArtists(video.artists),
+    album: '未知专辑',
+    cover:
+      getQishuiImageUrl(video.cover_url) ||
+      getQishuiImageUrl(video.share_cover_url) ||
+      getQishuiImageUrl(video.image_url) ||
+      'https://via.placeholder.com/120',
+    duration: video.duration,
+    previewDuration: video.duration,
+    isPreviewOnly: false,
+    collectCount: video.stats?.count_collected,
+    commentCount: video.stats?.count_comment,
+    shareCount: video.stats?.count_shared,
   } as any;
 };
 
@@ -88,7 +128,15 @@ export const parsePlaylistInfo = async (html: string) => {
   const rawPlaylistInfo = playlistPage.playlistInfo;
   const tracks =
     playlistPage.medias
-      ?.map((media) => formatPlaylistMusicInfo(media.entity?.track))
+      ?.map((media) => {
+        if (media.entity?.track) {
+          return formatPlaylistMusicInfo(media.entity.track);
+        }
+        if (media.entity?.video) {
+          return formatPlaylistVideoMusicInfo(media.entity.video);
+        }
+        return null;
+      })
       .filter((track): track is PlaylistMusicInfo => Boolean(track)) || [];
 
   return {

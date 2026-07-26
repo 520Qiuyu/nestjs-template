@@ -5,8 +5,9 @@ import type {
   GetQishuiTrackResponse,
   QishuiAuthParams,
 } from '@/types/qishui';
+import type { IUrl, UgcVideoPageData } from '@/types/qishui/song';
+import { parseRouterData } from '../utils';
 import { get, post } from '../utils/request';
-import type { IUrl } from '@/types/qishui/song';
 
 /**
  * 获取汽水 PC 端歌曲详情
@@ -39,6 +40,25 @@ export const getQishuiTrack = (
     {},
     options,
   );
+};
+
+/**
+ * 根据视频 id 获取 ugc 视频分享页数据
+ * @example
+ * ```ts
+ * const page = await getQishuiVideo('7639280897337855278');
+ * ```
+ * @see https://music.douyin.com/qishui/share/ugc_video?ugc_video_id=7639280897337855278
+ */
+export const getQishuiVideo = async (id: string): Promise<UgcVideoPageData> => {
+  const url = `https://music.douyin.com/qishui/share/ugc_video?ugc_video_id=${id}`;
+  const html = await fetch(url).then((res) => res.text());
+  const routerData = parseRouterData(html);
+  const page = routerData?.loaderData?.ugc_video_page;
+  if (!page?.videoOptions) {
+    throw new Error('未找到视频信息');
+  }
+  return page;
 };
 
 /**
