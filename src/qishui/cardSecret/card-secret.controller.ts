@@ -25,10 +25,7 @@ export class CardSecretController {
 
   // 获取卡密列表
   @Get()
-  list(
-    @Query() query: ListCardSecretQueryDto,
-    @CurrentUser() user: User,
-  ) {
+  list(@Query() query: ListCardSecretQueryDto, @CurrentUser() user: User) {
     return this.cardSecretService.list(query, user);
   }
 

@@ -405,9 +405,7 @@ export class QishuiService {
       const options = page.videoOptions;
       const title = options?.videoName || '未知歌曲';
       const artist = options?.artistName || '未知歌手';
-      const playUrl = options?.url
-        ? encodeURI(decodeURI(options.url))
-        : '';
+      const playUrl = options?.url ? encodeURI(decodeURI(options.url)) : '';
 
       return {
         // @ts-ignore

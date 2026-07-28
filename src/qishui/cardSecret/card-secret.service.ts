@@ -45,6 +45,50 @@ export class CardSecretService {
   }
 
   /**
+   * 当天 00:00:00
+   * @example
+   * ```ts
+   * this.getStartOfToday()
+   * ```
+   */
+  private getStartOfToday() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return today;
+  }
+
+  /**
+   * 判断日期是否为同一自然日
+   * @example
+   * ```ts
+   * this.isSameCalendarDay(card.dailyParseDate, this.getStartOfToday())
+   * ```
+   */
+  private isSameCalendarDay(date: Date | null | undefined, day: Date) {
+    if (!date) return false;
+    return (
+      date.getFullYear() === day.getFullYear() &&
+      date.getMonth() === day.getMonth() &&
+      date.getDate() === day.getDate()
+    );
+  }
+
+  /**
+   * 取有效的「当日已解析数量」（跨日视为 0）
+   * @example
+   * ```ts
+   * this.getEffectiveDailyParsedCount(cardSecret)
+   * ```
+   */
+  private getEffectiveDailyParsedCount(
+    item: Pick<CardSecret, 'dailyParsedCount' | 'dailyParseDate'>,
+  ) {
+    return this.isSameCalendarDay(item.dailyParseDate, this.getStartOfToday())
+      ? item.dailyParsedCount
+      : 0;
+  }
+
+  /**
    * 验证卡密是否有效
    * @example
    * ```ts
@@ -96,6 +140,18 @@ export class CardSecretService {
     ) {
       return '卡密解析数量已达到上限!请及时续费。';
     }
+    // 时长卡：dailyParseLimit 为空则不校验日限额
+    if (
+      checkParseLimit &&
+      cardSecret.type === 'time' &&
+      cardSecret.dailyParseLimit != null &&
+      cardSecret.dailyParseLimit > 0
+    ) {
+      const todayParsed = this.getEffectiveDailyParsedCount(cardSecret);
+      if (todayParsed >= cardSecret.dailyParseLimit) {
+        return '今日解析次数已达上限，请明天再试或联系管理员。';
+      }
+    }
     return true;
   }
 
@@ -117,9 +173,23 @@ export class CardSecretService {
     if (!cardSecret) {
       return '卡密不存在!';
     }
+
+    const today = this.getStartOfToday();
+    const isToday = this.isSameCalendarDay(cardSecret.dailyParseDate, today);
     const updated = await this.prisma.cardSecret.update({
       where: { id: cardSecret.id },
-      data: { parsedCount: { increment: count } },
+      data: {
+        parsedCount: { increment: count },
+        // 时长卡同步累计当日解析次数（跨日从 count 起算）
+        ...(cardSecret.type === 'time'
+          ? {
+              dailyParsedCount: isToday
+                ? { increment: count }
+                : count,
+              dailyParseDate: today,
+            }
+          : {}),
+      },
     });
     return updated;
   }
@@ -133,6 +203,7 @@ export class CardSecretService {
     creatorAccountMap?: Map<string, string>,
   ) {
     const unparsedCount = Math.max(0, item.parseLimit - item.parsedCount);
+    const dailyParsedCount = this.getEffectiveDailyParsedCount(item);
     const authInfo = item.authInfoId
       ? authInfoMap.get(item.authInfoId)
       : undefined;
@@ -143,6 +214,7 @@ export class CardSecretService {
     return {
       ...item,
       unparsedCount,
+      dailyParsedCount,
       authInfo: authInfo ?? null,
       createUser: creatorAccount ? { account: creatorAccount } : null,
     };
@@ -469,6 +541,9 @@ export class CardSecretService {
         expireTime: true,
         parseLimit: true,
         parsedCount: true,
+        dailyParseLimit: true,
+        dailyParsedCount: true,
+        dailyParseDate: true,
         status: true,
         remark: true,
       },
@@ -478,7 +553,10 @@ export class CardSecretService {
       return generateError('卡密不存在或已失效');
     }
 
-    return generateOk(cardSecret);
+    return generateOk({
+      ...cardSecret,
+      dailyParsedCount: this.getEffectiveDailyParsedCount(cardSecret),
+    });
   }
 
   /** 创建卡密 */
@@ -494,12 +572,22 @@ export class CardSecretService {
       this.generateSecret(),
     );
 
+    const dailyParseLimit =
+      body.type === 'time'
+        ? body.dailyParseLimit === null
+          ? null
+          : (body.dailyParseLimit ?? 2000)
+        : null;
+
     const data = secrets.map((secret) => ({
       secret,
       type: body.type,
       expireTime: body.type === 'time' ? (body.expireTime ?? null) : null,
       parseLimit: body.type === 'count' ? (body.parseLimit ?? 0) : 0,
       parsedCount: 0,
+      dailyParseLimit,
+      dailyParsedCount: 0,
+      dailyParseDate: null as Date | null,
       authInfoId,
       status: body.status ?? 'normal',
       remark: body.remark ?? null,
@@ -563,6 +651,13 @@ export class CardSecretService {
       );
     }
 
+    const nextDailyParseLimit =
+      nextType === 'time'
+        ? body.dailyParseLimit !== undefined
+          ? body.dailyParseLimit
+          : existing.dailyParseLimit
+        : null;
+
     const updated = await this.prisma.cardSecret.update({
       where: { id },
       data: {
@@ -579,6 +674,7 @@ export class CardSecretService {
               ? body.parseLimit
               : existing.parseLimit
             : 0,
+        dailyParseLimit: nextDailyParseLimit,
         authInfoId,
         ...(body.remark !== undefined ? { remark: body.remark } : {}),
         ...(body.status ? { status: body.status } : {}),

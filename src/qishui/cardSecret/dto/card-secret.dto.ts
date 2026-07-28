@@ -38,6 +38,10 @@ export const CreateCardSecretSchema = z
     type: CardSecretTypeSchema,
     expireTime: z.coerce.date().nullable().optional(),
     parseLimit: z.coerce.number().int().min(1).max(99999).optional(),
+    /** 每日最多解析数量（时长卡）；传 null 表示不限制 */
+    dailyParseLimit: z
+      .union([z.coerce.number().int().min(1).max(999999), z.null()])
+      .optional(),
     authInfo: CardSecretAuthInfoSchema.optional(),
     remark: z.string().optional(),
     status: CardSecretStatusSchema.default('normal'),
@@ -67,6 +71,10 @@ export const UpdateCardSecretSchema = z
     type: CardSecretTypeSchema.optional(),
     expireTime: z.coerce.date().nullable().optional(),
     parseLimit: z.coerce.number().int().min(1).max(99999).optional(),
+    /** 每日最多解析数量（时长卡）；传 null 表示不限制 */
+    dailyParseLimit: z
+      .union([z.coerce.number().int().min(1).max(999999), z.null()])
+      .optional(),
     authInfo: CardSecretAuthInfoSchema.nullable().optional(),
     remark: z.string().nullable().optional(),
     status: CardSecretStatusSchema.optional(),

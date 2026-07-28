@@ -193,31 +193,37 @@ model SystemLog {
 // 卡密表
 model CardSecret {
   // 唯一主键
-  id          String    @id @default(uuid())
+  id               String    @id @default(uuid())
   // 卡密
-  secret      String    @unique
+  secret           String    @unique
   // 类型
-  type        String    @default("time")
+  type             String    @default("time")
   // 过期时间
-  expireTime  DateTime?
+  expireTime       DateTime?
   // 可解析数量
-  parseLimit  Int       @default(0)
+  parseLimit       Int       @default(0)
   // 已解析数量
-  parsedCount Int       @default(0)
+  parsedCount      Int       @default(0)
+  // 每日最多解析数量（仅时长卡；为空则不校验日限额）
+  dailyParseLimit  Int?
+  // 当日已解析数量
+  dailyParsedCount Int       @default(0)
+  // 当日计数对应的日期（用于跨日清零）
+  dailyParseDate   DateTime?
   // 认证信息ID
-  authInfoId  String?
+  authInfoId       String?
   // 创建者
-  creatorId   String?
+  creatorId        String?
   // 创建时间
-  ctime       DateTime  @default(now())
+  ctime            DateTime  @default(now())
   // 更新时间
-  utime       DateTime  @default(now()) @updatedAt
+  utime            DateTime  @default(now()) @updatedAt
   // 是否删除
-  isDeleted   Boolean   @default(false)
+  isDeleted        Boolean   @default(false)
   // 状态
-  status      String    @default("normal")
+  status           String    @default("normal")
   // 备注
-  remark      String?
+  remark           String?
 
   @@index([creatorId])
   @@index([authInfoId])
