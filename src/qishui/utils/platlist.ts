@@ -1,12 +1,25 @@
 import type {
+  GetQishuiPlaylistDetailResponse,
+  PlaylistInfo,
+  PlaylistMedia,
   PlaylistMusicInfo,
   PlaylistTrack,
   PlaylistVideo,
+  RawPlaylistInfo,
 } from '@/types/qishui/platlist';
 import { getQishuiImageUrl, parseRouterData } from '.';
 
 export const getQishuiMusicUrl = (id: string) => {
   return `https://music.douyin.com/qishui/share/track?track_id=${id}`;
+};
+
+/**
+ * 生成歌单分享页地址
+ * @example
+ * getQishuiPlaylistUrl('7380550365186621459')
+ */
+export const getQishuiPlaylistUrl = (id: string) => {
+  return `https://music.douyin.com/qishui/share/playlist?playlist_id=${id}`;
 };
 
 const formatPlaylistArtists = (
@@ -110,6 +123,86 @@ const formatPlaylistVideoMusicInfo = (
 };
 
 /**
+ * 从歌单媒体项中取出歌曲 / 视频实体
+ * @example
+ * const track = getPlaylistMediaTrack(media);
+ */
+const getPlaylistMediaTrack = (media?: PlaylistMedia) =>
+  media?.entity?.track || media?.entity?.track_wrapper?.track;
+
+/**
+ * 从歌单媒体项中取出视频实体
+ * @example
+ * const video = getPlaylistMediaVideo(media);
+ */
+const getPlaylistMediaVideo = (media?: PlaylistMedia) =>
+  media?.entity?.video || media?.entity?.video_wrapper?.video;
+
+/**
+ * 将歌单媒体列表格式化为页面可复用的曲目信息
+ * @example
+ * const tracks = formatPlaylistMedias(medias);
+ */
+const formatPlaylistMedias = (medias?: PlaylistMedia[] | null) =>
+  medias
+    ?.map((media) => {
+      const track = getPlaylistMediaTrack(media);
+      if (track) {
+        return formatPlaylistMusicInfo(track);
+      }
+      const video = getPlaylistMediaVideo(media);
+      if (video) {
+        return formatPlaylistVideoMusicInfo(video);
+      }
+      return null;
+    })
+    .filter((track): track is PlaylistMusicInfo => Boolean(track)) || [];
+
+/**
+ * 将原始歌单信息 + 媒体列表归一化为与分享页一致的结构
+ * @example
+ * const routerData = normalizePlaylistInfo(playlist, media_resources);
+ */
+export const normalizePlaylistInfo = (
+  rawPlaylistInfo: RawPlaylistInfo,
+  medias?: PlaylistMedia[] | null,
+): PlaylistInfo => {
+  const tracks = formatPlaylistMedias(medias);
+
+  return {
+    id: rawPlaylistInfo.id,
+    title: rawPlaylistInfo.title || rawPlaylistInfo.public_title || '未知歌单',
+    cover:
+      getQishuiImageUrl(rawPlaylistInfo.url_cover) ||
+      'https://via.placeholder.com/120',
+    owner:
+      rawPlaylistInfo.owner?.nickname ||
+      rawPlaylistInfo.owner?.public_name ||
+      '未知用户',
+    countTracks:
+      rawPlaylistInfo.count_tracks ||
+      rawPlaylistInfo.resource_cnt?.track_cnt ||
+      tracks.length ||
+      0,
+    tracks,
+  };
+};
+
+/**
+ * 将 PC 歌单详情接口响应归一化为与分享链接解析一致的结构
+ * @example
+ * const routerData = normalizePlaylistDetailResponse(detail);
+ */
+export const normalizePlaylistDetailResponse = (
+  detail: GetQishuiPlaylistDetailResponse,
+): PlaylistInfo => {
+  if (!detail.playlist) {
+    throw new Error('未找到歌单信息');
+  }
+  return normalizePlaylistInfo(detail.playlist, detail.media_resources);
+};
+
+/**
  * 解析歌单信息。
  *
  * @example
@@ -125,35 +218,5 @@ export const parsePlaylistInfo = async (html: string) => {
     throw new Error('未找到歌单信息');
   }
 
-  const rawPlaylistInfo = playlistPage.playlistInfo;
-  const tracks =
-    playlistPage.medias
-      ?.map((media) => {
-        if (media.entity?.track) {
-          return formatPlaylistMusicInfo(media.entity.track);
-        }
-        if (media.entity?.video) {
-          return formatPlaylistVideoMusicInfo(media.entity.video);
-        }
-        return null;
-      })
-      .filter((track): track is PlaylistMusicInfo => Boolean(track)) || [];
-
-  return {
-    id: rawPlaylistInfo.id,
-    title: rawPlaylistInfo.title || rawPlaylistInfo.public_title || '未知歌单',
-    cover:
-      getQishuiImageUrl(rawPlaylistInfo.url_cover) ||
-      'https://via.placeholder.com/120',
-    owner:
-      rawPlaylistInfo.owner?.nickname ||
-      rawPlaylistInfo.owner?.public_name ||
-      '未知用户',
-    countTracks:
-      rawPlaylistInfo.count_tracks ||
-      rawPlaylistInfo.resource_cnt?.track_cnt ||
-      tracks?.length ||
-      0,
-    tracks,
-  };
+  return normalizePlaylistInfo(playlistPage.playlistInfo, playlistPage.medias);
 };

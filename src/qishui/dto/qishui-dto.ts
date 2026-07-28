@@ -40,13 +40,15 @@ export class GetVideoInfoQueryDto extends createZodDto(
 ) {}
 
 /** 根据歌单 id 查询参数 */
-export const GetPlaylistInfoQuerySchema = z.object({
+export const GetPlaylistDetailQuerySchema = z.object({
   playlistId: z.string().min(1, '歌单 id 不能为空'),
-  cardSecret: z.string(),
+  cardSecret: z.string().optional(),
+  cursor: z.string().optional(),
+  count: z.coerce.number().int().positive().max(1000).optional(),
 });
 /** 根据歌单 id 查询参数类型 */
-export class GetPlaylistInfoQueryDto extends createZodDto(
-  GetPlaylistInfoQuerySchema,
+export class GetPlaylistDetailQueryDto extends createZodDto(
+  GetPlaylistDetailQuerySchema,
 ) {}
 
 /** 获取歌曲播放链接查询参数 */

@@ -1,5 +1,6 @@
 import { generateError, generateOk } from '@/common/libs/response';
 import type {
+  GetPlaylistDetailQueryDto,
   GetSongInfoQueryDto,
   GetVideoInfoQueryDto,
   ParseShareLinkQueryDto,
@@ -7,7 +8,9 @@ import type {
 } from '@/qishui/dto/qishui-dto';
 import type { QishuiAuthParams } from '@/types/qishui';
 import type { MusicInfo } from '@/types/qishui/song';
+import type { GetQishuiPlaylistDetailResponse } from '@/types/qishui/platlist';
 import { Injectable } from '@nestjs/common';
+import { getQishuiPlaylistDetail } from './apis/playlist';
 import {
   getQishuiSongPlayUrl,
   getQishuiTrack,
@@ -18,7 +21,11 @@ import type { CreateParseLogInput } from './logs/dto/logs.dto';
 import { LogsService } from './logs/logs.service';
 import type { RequestMeta } from '@/common/decorator/request-meta.decorator';
 import { getQishuiImageUrl, parseLink } from './utils';
-import { parsePlaylistInfo } from './utils/platlist';
+import {
+  getQishuiPlaylistUrl,
+  normalizePlaylistDetailResponse,
+  parsePlaylistInfo,
+} from './utils/platlist';
 import { krcToLrc, parseMusicInfo } from './utils/song';
 
 /** 临时测试用认证信息，后续改为从认证信息表读取 */
@@ -184,10 +191,26 @@ export class QishuiService {
     try {
       const shareUrl = parseLink(query.shareLink);
       const html = await fetch(shareUrl).then((res) => res.text());
-      const routerData = await parsePlaylistInfo(html);
-      targetName = routerData.title || '';
-      targetId = String(routerData.id || '');
-      return generateOk({ shareLink: query.shareLink, routerData });
+      // 分享页 HTML 仅含部分曲目，先解析出歌单 id，再走详情接口拉全量
+      const preview = await parsePlaylistInfo(html);
+      targetName = preview.title || '';
+      targetId = String(preview.id || '');
+
+      if (!preview.id) {
+        return generateOk({ shareLink: query.shareLink, routerData: preview });
+      }
+
+      try {
+        const detail = await this.fetchPlaylistDetailAll(String(preview.id));
+        const routerData = normalizePlaylistDetailResponse(detail);
+        targetName = routerData.title || targetName;
+        targetId = String(routerData.id || targetId);
+        return generateOk({ shareLink: query.shareLink, routerData });
+      } catch (detailError) {
+        // 详情接口失败时回退分享页数据，避免整次解析失败
+        console.warn('歌单详情全量拉取失败，回退分享页数据:', detailError);
+        return generateOk({ shareLink: query.shareLink, routerData: preview });
+      }
     } catch (error) {
       status = 'fail';
       errorMsg =
@@ -197,6 +220,105 @@ export class QishuiService {
     } finally {
       this.safeCreateParseLog({
         cardSecret: cardSecret || null,
+        type: 'playlist',
+        targetName,
+        targetId,
+        status,
+        ip: meta.ip,
+        path: meta.path,
+        method: meta.method,
+        errorMsg,
+        parseParams: { ...query },
+        durationMs: Date.now() - start,
+      });
+    }
+  }
+
+  /**
+   * 拉取汽水歌单详情（自动翻页直至拉完）
+   * @example
+   * ```ts
+   * const detail = await this.fetchPlaylistDetailAll('7380550365186621459');
+   * ```
+   */
+  private async fetchPlaylistDetailAll(
+    playlistId: string,
+    options: { cursor?: string; count?: number } = {},
+  ): Promise<GetQishuiPlaylistDetailResponse> {
+    const pageSize = options.count || 1000;
+    let cursor = options.cursor || '';
+    let firstPage: GetQishuiPlaylistDetailResponse | null = null;
+    const mediaResources: NonNullable<
+      GetQishuiPlaylistDetailResponse['media_resources']
+    > = [];
+    let guard = 0;
+
+    while (guard < 50) {
+      guard += 1;
+      const page = await getQishuiPlaylistDetail(TEMP_AUTH_INFO, {
+        playlistId,
+        cursor,
+        count: pageSize,
+      });
+      if (!firstPage) firstPage = page;
+
+      const pageMedias = page.media_resources || [];
+      if (pageMedias.length) {
+        mediaResources.push(...pageMedias);
+      }
+
+      const nextCursor = page.next_cursor || '';
+      // has_more 偶发缺失：本页满页且有 next_cursor 时继续翻页
+      const shouldContinue =
+        Boolean(nextCursor) &&
+        nextCursor !== cursor &&
+        (page.has_more === true || pageMedias.length >= pageSize);
+
+      if (!shouldContinue) {
+        break;
+      }
+      cursor = nextCursor;
+    }
+
+    if (!firstPage?.playlist) {
+      throw new Error('未找到歌单信息');
+    }
+
+    return {
+      ...firstPage,
+      has_more: false,
+      next_cursor: '',
+      media_resources: mediaResources,
+    };
+  }
+
+  /** 根据歌单 id 获取歌单详情（返回结构与 parse-playlist-share-link 一致） */
+  async getPlaylistDetail(query: GetPlaylistDetailQueryDto, meta: RequestMeta) {
+    const start = Date.now();
+    let status: CreateParseLogInput['status'] = 'success';
+    let errorMsg: string | null = null;
+    let targetName = '';
+    let targetId = query.playlistId || '';
+    const shareLink = getQishuiPlaylistUrl(query.playlistId);
+
+    try {
+      const detail = await this.fetchPlaylistDetailAll(query.playlistId, {
+        cursor: query.cursor,
+        count: query.count,
+      });
+      const routerData = normalizePlaylistDetailResponse(detail);
+      targetName = routerData.title || '';
+      targetId = String(routerData.id || query.playlistId);
+
+      return generateOk({ shareLink, routerData });
+    } catch (error) {
+      status = 'fail';
+      errorMsg = error instanceof Error ? error.message : '获取歌单详情失败';
+      console.error('获取歌单详情失败:', error);
+      return generateError(errorMsg);
+    } finally {
+      this.safeCreateParseLog({
+        cardSecret: query.cardSecret || null,
         type: 'playlist',
         targetName,
         targetId,

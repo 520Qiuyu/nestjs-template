@@ -120,9 +120,18 @@ export type PlaylistVideo = {
 
 export type PlaylistMedia = {
   id?: string;
+  type?: string;
   entity?: {
     track?: PlaylistTrack;
     video?: PlaylistVideo;
+    /** PC 歌单详情接口：歌曲包在 track_wrapper 内 */
+    track_wrapper?: {
+      track?: PlaylistTrack;
+    };
+    /** PC 歌单详情接口：视频包在 video_wrapper 内 */
+    video_wrapper?: {
+      video?: PlaylistVideo;
+    };
   };
 };
 
@@ -139,6 +148,27 @@ export type RawPlaylistInfo = {
     nickname?: string;
     public_name?: string;
   };
+};
+
+/** 获取歌单详情请求参数 */
+export type GetQishuiPlaylistDetailParams = {
+  playlistId: string;
+  cursor?: string;
+  count?: number;
+};
+
+/** 汽水 PC 端歌单详情响应 */
+export type GetQishuiPlaylistDetailResponse = {
+  status_info?: {
+    log_id?: string;
+    now?: number;
+    now_ts_ms?: number;
+  };
+  has_more?: boolean;
+  next_cursor?: string;
+  playlist?: RawPlaylistInfo;
+  media_resources?: PlaylistMedia[];
+  session_id?: string;
 };
 
 export type PlaylistPageData = {

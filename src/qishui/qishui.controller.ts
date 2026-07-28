@@ -1,6 +1,7 @@
 import { Public } from '@/auth/decorator/auth.decorator';
 import { RequestMeta } from '@/common/decorator/request-meta.decorator';
 import {
+  GetPlaylistDetailQueryDto,
   GetSongInfoQueryDto,
   GetVideoInfoQueryDto,
   ParseShareLinkQueryDto,
@@ -48,5 +49,14 @@ export class QishuiController {
     @RequestMeta() meta: RequestMeta,
   ) {
     return this.qishuiService.getVideoInfo(query, meta);
+  }
+
+  // 根据歌单id获取歌单详情
+  @Get('get-playlist-detail')
+  async getPlaylistDetail(
+    @Query() query: GetPlaylistDetailQueryDto,
+    @RequestMeta() meta: RequestMeta,
+  ) {
+    return this.qishuiService.getPlaylistDetail(query, meta);
   }
 }
