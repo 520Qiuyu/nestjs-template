@@ -245,7 +245,7 @@ export class QishuiService {
     playlistId: string,
     options: { cursor?: string; count?: number } = {},
   ): Promise<GetQishuiPlaylistDetailResponse> {
-    const pageSize = options.count || 1000;
+    const pageSize = options.count || 190;
     let cursor = options.cursor || '';
     let firstPage: GetQishuiPlaylistDetailResponse | null = null;
     const mediaResources: NonNullable<
