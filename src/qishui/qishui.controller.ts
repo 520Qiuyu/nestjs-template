@@ -6,8 +6,9 @@ import {
   GetVideoInfoQueryDto,
   ParseShareLinkQueryDto,
   PlaylistParseShareLinkQueryDto,
+  ProxyImageQueryDto,
 } from '@/qishui/dto/qishui-dto';
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Header, Query, StreamableFile } from '@nestjs/common';
 import { QishuiService } from './qishui.service';
 
 @Controller('qishui')
@@ -58,5 +59,20 @@ export class QishuiController {
     @RequestMeta() meta: RequestMeta,
   ) {
     return this.qishuiService.getPlaylistDetail(query, meta);
+  }
+
+  /**
+   * 代理拉取远程封面图，规避浏览器 CORS
+   */
+  @Get('proxy-image')
+  @Header('Cache-Control', 'public, max-age=86400')
+  async proxyImage(@Query() query: ProxyImageQueryDto) {
+    const { buffer, contentType } = await this.qishuiService.proxyImage(
+      query.url,
+    );
+    return new StreamableFile(buffer, {
+      type: contentType,
+      disposition: 'inline',
+    });
   }
 }

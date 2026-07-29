@@ -9,7 +9,7 @@ import type {
 import type { QishuiAuthParams } from '@/types/qishui';
 import type { MusicInfo } from '@/types/qishui/song';
 import type { GetQishuiPlaylistDetailResponse } from '@/types/qishui/platlist';
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { getQishuiPlaylistDetail } from './apis/playlist';
 import {
   getQishuiSongPlayUrl,
@@ -503,5 +503,44 @@ export class QishuiService {
         durationMs: Date.now() - start,
       });
     }
+  }
+
+  /**
+   * 服务端拉取远程图片，供前端内嵌封面绕过 CORS
+   * @example
+   * const { buffer, contentType } = await this.proxyImage('https://...');
+   */
+  async proxyImage(url: string) {
+    let parsed: URL;
+    try {
+      parsed = new URL(url);
+    } catch {
+      throw new BadRequestException('图片地址格式不正确');
+    }
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+      throw new BadRequestException('仅支持 http/https 图片地址');
+    }
+
+    const response = await fetch(url, {
+      headers: {
+        Referer: 'https://qishui.douyin.com/',
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      },
+      redirect: 'follow',
+    });
+    if (!response.ok) {
+      throw new BadRequestException(
+        `拉取封面失败：${response.status} ${response.statusText}`,
+      );
+    }
+
+    const contentType =
+      response.headers.get('content-type') || 'image/jpeg';
+    const arrayBuffer = await response.arrayBuffer();
+    return {
+      buffer: Buffer.from(arrayBuffer),
+      contentType,
+    };
   }
 }

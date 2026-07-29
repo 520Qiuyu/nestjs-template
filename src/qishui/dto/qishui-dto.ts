@@ -60,3 +60,13 @@ export const GetSongPlayUrlQuerySchema = z.object({
 export class GetSongPlayUrlQueryDto extends createZodDto(
   GetSongPlayUrlQuerySchema,
 ) {}
+
+/** 图片代理查询参数 */
+export const ProxyImageQuerySchema = z.object({
+  url: z
+    .string()
+    .min(1, '图片地址不能为空')
+    .url('图片地址格式不正确'),
+});
+/** 图片代理查询参数类型 */
+export class ProxyImageQueryDto extends createZodDto(ProxyImageQuerySchema) {}
