@@ -26,6 +26,11 @@ export async function syncQishuiPermissionResources(dryRun = false) {
     ),
     dryRun,
   });
+  await syncControllerPermissionResources({
+    parentId: '55538119-00c3-4a7c-ab4b-414d7414205d',
+    controllerPath: path.join(__dirname, 'dashboard/dashboard.controller.ts'),
+    dryRun,
+  });
 }
 
 if (path.resolve(process.argv[1] ?? '') === path.resolve(__filename)) {
