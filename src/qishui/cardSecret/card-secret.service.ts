@@ -183,9 +183,7 @@ export class CardSecretService {
         // 时长卡同步累计当日解析次数（跨日从 count 起算）
         ...(cardSecret.type === 'time'
           ? {
-              dailyParsedCount: isToday
-                ? { increment: count }
-                : count,
+              dailyParsedCount: isToday ? { increment: count } : count,
               dailyParseDate: today,
             }
           : {}),
@@ -568,6 +566,8 @@ export class CardSecretService {
       authInfoId = await this.upsertAuthInfo(body.authInfo);
     }
 
+    const isProxy = await this.userService.isProxy(user.id);
+
     const secrets = Array.from({ length: createCount }, () =>
       this.generateSecret(),
     );
@@ -578,6 +578,10 @@ export class CardSecretService {
           ? null
           : (body.dailyParseLimit ?? 2000)
         : null;
+    // 代理用户每天最多解析500次
+    const finalDailyParseLimit = isProxy
+      ? Math.min(dailyParseLimit ?? 10, 500)
+      : 1000;
 
     const data = secrets.map((secret) => ({
       secret,
@@ -585,7 +589,7 @@ export class CardSecretService {
       expireTime: body.type === 'time' ? (body.expireTime ?? null) : null,
       parseLimit: body.type === 'count' ? (body.parseLimit ?? 0) : 0,
       parsedCount: 0,
-      dailyParseLimit,
+      dailyParseLimit: finalDailyParseLimit,
       dailyParsedCount: 0,
       dailyParseDate: null as Date | null,
       authInfoId,

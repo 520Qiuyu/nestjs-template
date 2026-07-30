@@ -94,6 +94,58 @@ export class UserService {
   }
 
   /**
+   * 判断用户是否为管理员
+   * @example
+   * ```ts
+   * await this.isAdmin(userId) // true
+   * ```
+   */
+  async isAdmin(userId: string) {
+    const userRoles = await this.prisma.permissionUserRole.findMany({
+      where: { userId, isDeleted: false },
+      select: { roleId: true },
+    });
+    if (!userRoles.length) {
+      return false;
+    }
+    const roles = await this.prisma.permissionRole.findMany({
+      where: {
+        id: { in: userRoles.map((item) => item.roleId) },
+        isDeleted: false,
+        status: 'normal',
+        code: 'admin',
+      },
+    });
+    return roles.length > 0;
+  }
+
+  /**
+   * 判断用户是否为代理
+   * @example
+   * ```ts
+   * await this.isProxy(userId) // true
+   * ```
+   */
+  async isProxy(userId: string) {
+    const userRoles = await this.prisma.permissionUserRole.findMany({
+      where: { userId, isDeleted: false },
+      select: { roleId: true },
+    });
+    if (!userRoles.length) {
+      return false;
+    }
+    const roles = await this.prisma.permissionRole.findMany({
+      where: {
+        id: { in: userRoles.map((item) => item.roleId) },
+        isDeleted: false,
+        status: 'normal',
+        code: 'proxy',
+      },
+    });
+    return roles.length > 0;
+  }
+
+  /**
    * 判断用户是否为超级管理员或管理员
    * @example
    * ```ts
