@@ -65,8 +65,12 @@ export class CardSecretController {
 
   // 更新卡密
   @Put(':id')
-  update(@Param('id') id: string, @Body() body: UpdateCardSecretDto) {
-    return this.cardSecretService.update(id, body);
+  update(
+    @Param('id') id: string,
+    @Body() body: UpdateCardSecretDto,
+    @CurrentUser() user: User,
+  ) {
+    return this.cardSecretService.update(id, body, user);
   }
 
   // 删除卡密

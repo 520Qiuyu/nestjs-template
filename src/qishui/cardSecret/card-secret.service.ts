@@ -19,6 +19,11 @@ type AuthInfoPayload = {
   xMedusa: string;
 };
 
+type CreatorInfo = {
+  account: string;
+  nickname: string | null;
+};
+
 @Injectable()
 export class CardSecretService {
   constructor(
@@ -193,20 +198,63 @@ export class CardSecretService {
   }
 
   /**
+   * 按用户 ID 批量查询创建者账号与昵称
+   * @example
+   * ```ts
+   * const map = await this.buildCreatorMap(['user-id']);
+   * // Map { 'user-id' => { account: 'admin', nickname: '管理员' } }
+   * ```
+   */
+  private async buildCreatorMap(creatorIds: string[]) {
+    const uniqueIds = [...new Set(creatorIds.filter(Boolean))];
+    if (!uniqueIds.length) {
+      return new Map<string, CreatorInfo>();
+    }
+
+    const [users, profiles] = await Promise.all([
+      this.prisma.user.findMany({
+        where: { id: { in: uniqueIds }, isDeleted: false },
+        select: { id: true, account: true },
+      }),
+      this.prisma.userProfile.findMany({
+        where: { userId: { in: uniqueIds } },
+        select: { userId: true, nickname: true },
+      }),
+    ]);
+
+    const nicknameMap = new Map(
+      profiles.map((profile) => [profile.userId, profile.nickname]),
+    );
+
+    return new Map(
+      users.map(
+        (creator) =>
+          [
+            creator.id,
+            {
+              account: creator.account,
+              nickname: nicknameMap.get(creator.id) ?? null,
+            },
+          ] as [string, CreatorInfo],
+      ),
+    );
+  }
+
+  /**
    * 格式化列表项（补充未解析数量、认证信息与创建者）
    */
   private formatListItem(
     item: CardSecret,
     authInfoMap: Map<string, AuthInfoPayload>,
-    creatorAccountMap?: Map<string, string>,
+    creatorMap?: Map<string, CreatorInfo>,
   ) {
     const unparsedCount = Math.max(0, item.parseLimit - item.parsedCount);
     const dailyParsedCount = this.getEffectiveDailyParsedCount(item);
     const authInfo = item.authInfoId
       ? authInfoMap.get(item.authInfoId)
       : undefined;
-    const creatorAccount = item.creatorId
-      ? (creatorAccountMap?.get(item.creatorId) ?? null)
+    const createUser = item.creatorId
+      ? (creatorMap?.get(item.creatorId) ?? null)
       : null;
 
     return {
@@ -214,7 +262,7 @@ export class CardSecretService {
       unparsedCount,
       dailyParsedCount,
       authInfo: authInfo ?? null,
-      createUser: creatorAccount ? { account: creatorAccount } : null,
+      createUser,
     };
   }
 
@@ -293,7 +341,7 @@ export class CardSecretService {
 
     const options = users.map((item) => ({
       value: item.id,
-      label: item.account,
+      label: nicknameMap.get(item.id) || item.account,
       nickname: nicknameMap.get(item.id) ?? null,
     }));
 
@@ -410,18 +458,13 @@ export class CardSecretService {
       ),
     ];
 
-    const [authInfos, creators] = await Promise.all([
+    const [authInfos, creatorMap] = await Promise.all([
       authInfoIds.length
         ? this.prisma.authInfo.findMany({
             where: { id: { in: authInfoIds }, isDeleted: false },
           })
         : Promise.resolve([]),
-      creatorIds.length
-        ? this.prisma.user.findMany({
-            where: { id: { in: creatorIds }, isDeleted: false },
-            select: { id: true, account: true },
-          })
-        : Promise.resolve([]),
+      this.buildCreatorMap(creatorIds),
     ]);
 
     const authInfoMap = new Map<string, AuthInfoPayload>();
@@ -442,14 +485,8 @@ export class CardSecretService {
       }
     }
 
-    const creatorAccountMap = new Map(
-      creators.map(
-        (creator) => [creator.id, creator.account] as [string, string],
-      ),
-    );
-
     const list = rows.map((row) =>
-      this.formatListItem(row, authInfoMap, creatorAccountMap),
+      this.formatListItem(row, authInfoMap, creatorMap),
     );
     const result: PaginatedResultVo<(typeof list)[number]> & {
       unusedCount: number;
@@ -500,18 +537,11 @@ export class CardSecretService {
       }
     }
 
-    const creatorAccountMap = new Map<string, string>();
-    if (row.creatorId) {
-      const creator = await this.prisma.user.findFirst({
-        where: { id: row.creatorId, isDeleted: false },
-        select: { id: true, account: true },
-      });
-      if (creator) {
-        creatorAccountMap.set(creator.id, creator.account);
-      }
-    }
+    const creatorMap = row.creatorId
+      ? await this.buildCreatorMap([row.creatorId])
+      : new Map<string, CreatorInfo>();
 
-    return generateOk(this.formatListItem(row, authInfoMap, creatorAccountMap));
+    return generateOk(this.formatListItem(row, authInfoMap, creatorMap));
   }
 
   /**
@@ -566,8 +596,6 @@ export class CardSecretService {
       authInfoId = await this.upsertAuthInfo(body.authInfo);
     }
 
-    const isProxy = await this.userService.isProxy(user.id);
-
     const secrets = Array.from({ length: createCount }, () =>
       this.generateSecret(),
     );
@@ -578,10 +606,6 @@ export class CardSecretService {
           ? null
           : (body.dailyParseLimit ?? 2000)
         : null;
-    // 代理用户每天最多解析500次
-    const finalDailyParseLimit = isProxy
-      ? Math.min(dailyParseLimit ?? 10, 500)
-      : 1000;
 
     const data = secrets.map((secret) => ({
       secret,
@@ -589,7 +613,7 @@ export class CardSecretService {
       expireTime: body.type === 'time' ? (body.expireTime ?? null) : null,
       parseLimit: body.type === 'count' ? (body.parseLimit ?? 0) : 0,
       parsedCount: 0,
-      dailyParseLimit: finalDailyParseLimit,
+      dailyParseLimit,
       dailyParsedCount: 0,
       dailyParseDate: null as Date | null,
       authInfoId,
@@ -610,18 +634,18 @@ export class CardSecretService {
       authInfoMap.set(authInfoId, body.authInfo);
     }
 
-    const creatorAccountMap = new Map([[user.id, user.account]]);
+    const creatorMap = await this.buildCreatorMap([user.id]);
 
     return generateOk({
       list: created.map((row) =>
-        this.formatListItem(row, authInfoMap, creatorAccountMap),
+        this.formatListItem(row, authInfoMap, creatorMap),
       ),
       count: created.length,
     });
   }
 
   /** 更新卡密 */
-  async update(id: string, body: UpdateCardSecretDto) {
+  async update(id: string, body: UpdateCardSecretDto, user: User) {
     const existing = await this.prisma.cardSecret.findFirst({
       where: { id, isDeleted: false },
     });
@@ -661,7 +685,11 @@ export class CardSecretService {
           ? body.dailyParseLimit
           : existing.dailyParseLimit
         : null;
-
+    const isProxy = await this.userService.isProxy(user.id);
+    // 代理用户不能修改每日解析次数
+    const finalDailyParseLimit = isProxy
+      ? existing.dailyParseLimit
+      : nextDailyParseLimit;
     const updated = await this.prisma.cardSecret.update({
       where: { id },
       data: {
@@ -678,7 +706,7 @@ export class CardSecretService {
               ? body.parseLimit
               : existing.parseLimit
             : 0,
-        dailyParseLimit: nextDailyParseLimit,
+        dailyParseLimit: finalDailyParseLimit,
         authInfoId,
         ...(body.remark !== undefined ? { remark: body.remark } : {}),
         ...(body.status ? { status: body.status } : {}),
