@@ -291,3 +291,37 @@ model ParseLog {
   @@index([type])
   @@index([cardSecret])
 }
+
+// IP 黑名单
+model IpBlacklist {
+  // 唯一主键
+  id          String    @id @default(uuid())
+  // IP 地址
+  ip          String
+  // 来源 manual | rate_limit
+  source      String    @default("manual")
+  // 状态 active | unblocked
+  status      String    @default("active")
+  // 过期时间；null = 永久
+  expireAt    DateTime?
+  // 拉黑原因
+  reason      String    @db.VarChar(200)
+  // 备注
+  remark      String?   @db.VarChar(200)
+  // 创建人账号
+  createdBy   String
+  // 解除时间
+  unblockedAt DateTime?
+  // 解除人账号
+  unblockedBy String?
+  // 创建时间
+  ctime       DateTime  @default(now())
+  // 更新时间
+  utime       DateTime  @default(now()) @updatedAt
+  // 是否删除（预留）
+  isDeleted   Boolean   @default(false)
+
+  @@index([ip])
+  @@index([status])
+  @@index([ctime])
+}

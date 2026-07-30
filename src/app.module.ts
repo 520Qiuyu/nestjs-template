@@ -6,10 +6,11 @@ import { AuthGuard } from './auth/auth.guard';
 import { AuthModule } from './auth/auth.module';
 import loadConfigs from './common/libs/loadConfigs';
 import { HttpExceptionFilter } from './filters/http-exception-filter';
+import { IpBlacklistModule } from './ipBlacklist/ip-blacklist.module';
 import { PermissionModule } from './permission/permission.module';
 import { PrismaService } from './prisma.service';
-import { UserModule } from './user/user.module';
 import { QishuiModule } from './qishui/qishui.module';
+import { UserModule } from './user/user.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { QishuiModule } from './qishui/qishui.module';
     PermissionModule,
     UserModule,
     QishuiModule,
+    IpBlacklistModule,
   ],
   controllers: [],
   providers: [
