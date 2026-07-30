@@ -41,17 +41,13 @@ export class LogsService {
 
   /**
    * 获取解析日志列表（含统计）
+   * 超级管理员可查看全部；其他人仅可查看自己创建的卡密对应日志
    * @example
    * ```ts
    * await this.list(query, user);
    * ```
    */
   async list(query: ListParseLogQueryDto, user: User) {
-    const canView = await this.userService.isAdminOrSuperAdmin(user.id);
-    if (!canView) {
-      return generateForbidden('无权限查看解析日志');
-    }
-
     const {
       pageNum = 1,
       pageSize = 10,
@@ -88,8 +84,11 @@ export class LogsService {
     const statusList = splitCsv(status);
     const trimmedKeyword = keyword?.trim();
 
+    const scopeWhere = await this.buildCardSecretScopeWhere(user);
+
     const where: Prisma.ParseLogWhereInput = {
       isDeleted: false,
+      ...scopeWhere,
       ...(typeList.length ? { type: { in: typeList } } : {}),
       ...(statusList.length ? { status: { in: statusList } } : {}),
       ...(trimmedKeyword
@@ -165,13 +164,9 @@ export class LogsService {
    * ```
    */
   async getById(id: string, user: User) {
-    const canView = await this.userService.isAdminOrSuperAdmin(user.id);
-    if (!canView) {
-      return generateForbidden('无权限查看解析日志');
-    }
-
+    const scopeWhere = await this.buildCardSecretScopeWhere(user);
     const row = await this.prisma.parseLog.findFirst({
-      where: { id, isDeleted: false },
+      where: { id, isDeleted: false, ...scopeWhere },
     });
     if (!row) {
       return generateError('日志不存在');
@@ -206,6 +201,32 @@ export class LogsService {
     });
 
     return generateOk({ id });
+  }
+
+  /**
+   * 构建卡密数据范围：超管不过滤；其他人仅限自己创建的卡密
+   */
+  private async buildCardSecretScopeWhere(
+    user: User,
+  ): Promise<Prisma.ParseLogWhereInput> {
+    const isSuperAdmin = await this.userService.isSuperAdmin(user.id);
+    if (isSuperAdmin) {
+      return {};
+    }
+
+    const ownedSecrets = await this.prisma.cardSecret.findMany({
+      where: {
+        creatorId: user.id,
+        isDeleted: false,
+      },
+      select: { secret: true },
+    });
+
+    return {
+      cardSecret: {
+        in: ownedSecrets.map((item) => item.secret),
+      },
+    };
   }
 
   /**

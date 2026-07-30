@@ -65,6 +65,35 @@ export class UserService {
   }
 
   /**
+   * 判断用户是否为超级管理员
+   * @example
+   * ```ts
+   * await this.isSuperAdmin(userId) // true
+   * ```
+   */
+  async isSuperAdmin(userId: string) {
+    const userRoles = await this.prisma.permissionUserRole.findMany({
+      where: { userId, isDeleted: false },
+      select: { roleId: true },
+    });
+    if (!userRoles.length) {
+      return false;
+    }
+
+    const roles = await this.prisma.permissionRole.findMany({
+      where: {
+        id: { in: userRoles.map((item) => item.roleId) },
+        isDeleted: false,
+        status: 'normal',
+        code: 'super_admin',
+      },
+      select: { id: true },
+    });
+
+    return roles.length > 0;
+  }
+
+  /**
    * 判断用户是否为超级管理员或管理员
    * @example
    * ```ts
