@@ -652,6 +652,7 @@ export class CardSecretService {
     if (!existing) {
       return generateError('卡密不存在');
     }
+    const isProxy = await this.userService.isProxy(user.id);
 
     const nextType = body.type ?? existing.type;
     if (nextType === 'time') {
@@ -660,12 +661,20 @@ export class CardSecretService {
       if (!expireTime) {
         return generateError('按时间类型必须设置过期时间');
       }
+      // 代理用户不能修改过期时间比上次小，只能改大
+      if (isProxy && expireTime && existing.expireTime && expireTime < existing.expireTime) {
+        return generateError('过期时间不能小于上次时间');
+      }
     }
     if (nextType === 'count') {
       const parseLimit =
         body.parseLimit !== undefined ? body.parseLimit : existing.parseLimit;
       if (!parseLimit || parseLimit < 1) {
         return generateError('按数量类型必须设置可解析数量');
+      }
+      // 代理用户不能修改可解析数量比上次小，只能改大
+      if (isProxy && parseLimit && existing.parseLimit && parseLimit < existing.parseLimit) {
+        return generateError('可解析数量不能小于上次数量');
       }
     }
 
@@ -685,11 +694,16 @@ export class CardSecretService {
           ? body.dailyParseLimit
           : existing.dailyParseLimit
         : null;
-    const isProxy = await this.userService.isProxy(user.id);
-    // 代理用户不能修改每日解析次数
-    const finalDailyParseLimit = isProxy
-      ? existing.dailyParseLimit
-      : nextDailyParseLimit;
+
+    // 代理用户不能修改每日解析次数比上次小，只能改大
+    if (
+      isProxy &&
+      nextDailyParseLimit &&
+      existing.dailyParseLimit &&
+      nextDailyParseLimit < existing.dailyParseLimit
+    ) {
+      return generateError('每日解析次数不能小于上次数量');
+    }
     const updated = await this.prisma.cardSecret.update({
       where: { id },
       data: {
@@ -706,7 +720,7 @@ export class CardSecretService {
               ? body.parseLimit
               : existing.parseLimit
             : 0,
-        dailyParseLimit: finalDailyParseLimit,
+        dailyParseLimit: nextDailyParseLimit,
         authInfoId,
         ...(body.remark !== undefined ? { remark: body.remark } : {}),
         ...(body.status ? { status: body.status } : {}),
