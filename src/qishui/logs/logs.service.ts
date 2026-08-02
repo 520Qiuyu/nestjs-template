@@ -34,6 +34,7 @@ export class LogsService {
         errorMsg: input.errorMsg ?? null,
         parseParams: (input.parseParams ?? null) as Prisma.InputJsonValue,
         durationMs: input.durationMs ?? 0,
+        ua: input.ua ?? null,
       },
     });
     return row;
@@ -100,6 +101,7 @@ export class LogsService {
               { ip: { contains: trimmedKeyword } },
               { userAccount: { contains: trimmedKeyword } },
               { errorMsg: { contains: trimmedKeyword } },
+              { ua: { contains: trimmedKeyword } },
               { id: { contains: trimmedKeyword } },
             ],
           }
@@ -246,6 +248,7 @@ export class LogsService {
     errorMsg: string | null;
     parseParams: Prisma.JsonValue;
     durationMs: number;
+    ua: string | null;
     ctime: Date;
     utime: Date;
   }) {
@@ -268,6 +271,7 @@ export class LogsService {
             ? row.parseParams
             : JSON.stringify(row.parseParams),
       durationMs: row.durationMs,
+      ua: row.ua ?? null,
       ctime: row.ctime.toISOString(),
       utime: row.utime.toISOString(),
     };

@@ -279,6 +279,8 @@ model ParseLog {
   parseParams Json?
   // 耗时（毫秒）
   durationMs  Int      @default(0)
+  // UA
+  ua          String?  @db.Text
   // 是否删除
   isDeleted   Boolean  @default(false)
   // 创建时间

@@ -33,6 +33,7 @@ export const CreateParseLogSchema = z.object({
   errorMsg: z.string().nullable().optional(),
   parseParams: z.record(z.string(), z.unknown()).nullable().optional(),
   durationMs: z.number().int().min(0).default(0),
+  ua: z.string().nullable().optional(),
 });
 /** 创建解析日志参数类型 */
 export type CreateParseLogInput = z.infer<typeof CreateParseLogSchema>;
