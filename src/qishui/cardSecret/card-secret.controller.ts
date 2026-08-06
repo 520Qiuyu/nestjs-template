@@ -63,6 +63,12 @@ export class CardSecretController {
     return this.cardSecretService.updateStatus(id, body);
   }
 
+  // 重置当日解析次数 —— 需放在 :id 通用更新之前
+  @Put(':id/reset-daily-parse-count')
+  resetDailyParseCount(@Param('id') id: string) {
+    return this.cardSecretService.resetDailyParseCount(id);
+  }
+
   // 更新卡密
   @Put(':id')
   update(

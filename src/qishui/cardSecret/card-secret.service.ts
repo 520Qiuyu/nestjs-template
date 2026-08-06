@@ -747,6 +747,26 @@ export class CardSecretService {
     return this.getById(id);
   }
 
+  /** 重置当日解析次数 */
+  async resetDailyParseCount(id: string) {
+    const existing = await this.prisma.cardSecret.findFirst({
+      where: { id, isDeleted: false },
+    });
+    if (!existing) {
+      return generateError('卡密不存在');
+    }
+
+    await this.prisma.cardSecret.update({
+      where: { id },
+      data: {
+        dailyParsedCount: 0,
+        dailyParseDate: this.getStartOfToday(),
+      },
+    });
+
+    return this.getById(id);
+  }
+
   /** 删除卡密（软删） */
   async remove(id: string) {
     const existing = await this.prisma.cardSecret.findFirst({
