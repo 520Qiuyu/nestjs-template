@@ -69,7 +69,10 @@ export class QishuiService {
     try {
       // 1、获取歌曲信息
       const trackInfo = await getQishuiTrack(TEMP_AUTH_INFO, { trackId });
-      const { lyric, track, track_player } = trackInfo || {};
+      const { lyric, track, track_player, status_code } = trackInfo || {};
+      if (status_code === 1000005) {
+        return null;
+      }
       const { url_player_info } = track_player || {};
       const musicInfo: MusicInfo = {
         trackId,
@@ -89,6 +92,8 @@ export class QishuiService {
         cover: getQishuiImageUrl(track?.album?.url_cover),
         lrc: `[ti:${trackInfo.track?.name}]\n[ar:${track?.artists?.map((artist) => artist.name).join(',')}]\n${krcToLrc(lyric?.content)}`,
         lrcText: krcToLrc(lyric?.content, 'text'),
+        // @ts-ignore
+        trackInfo,
       };
 
       if (!url_player_info) {
@@ -120,6 +125,8 @@ export class QishuiService {
     let errorMsg: string | null = null;
     let targetName = '';
     let targetId = '';
+    let musicInfo: MusicInfo | null = null;
+    const { shareLink } = query;
 
     try {
       const cardSecret = await this.cardSecretService.validateSecret(
@@ -135,25 +142,35 @@ export class QishuiService {
         errorMsg = cardSecret;
         return generateError(cardSecret);
       }
-
-      const shareUrl = parseLink(query.shareLink);
-      const html = await fetch(shareUrl).then((res) => res.text());
-      const musicInfo = await parseMusicInfo(html);
-      targetName = musicInfo.title || '';
-      targetId = musicInfo.trackId || '';
-
-      if (!musicInfo.trackId) {
-        return generateOk({ shareLink: query.shareLink, musicInfo });
+      console.log(
+        'shareLink',
+        shareLink,
+        '/^\d+$/.test(shareLink)',
+        /^\d+$/.test(shareLink),
+      );
+      // 如果shareUrl为一串数字，则为trackId
+      if (/^\d+$/.test(shareLink)) {
+        targetId = shareLink;
+      } else {
+        const shareUrl = parseLink(shareLink);
+        const html = await fetch(shareUrl).then((res) => res.text());
+        musicInfo = await parseMusicInfo(html);
+        targetName = musicInfo.title || '';
+        targetId = musicInfo.trackId || '';
       }
 
-      const fullInfo = await this.parseSongInfo(musicInfo.trackId);
+      if (!targetId) {
+        return generateOk({ shareLink, musicInfo });
+      }
+
+      const fullInfo = await this.parseSongInfo(targetId);
       if (fullInfo?.title) targetName = fullInfo.title;
       if (fullInfo?.trackId) targetId = fullInfo.trackId;
 
       if (fullInfo?.urls?.length) {
         this.cardSecretService.increaseParseCount(query.cardSecret);
       }
-      return generateOk({ shareLink: query.shareLink, musicInfo, fullInfo });
+      return generateOk({ shareLink, musicInfo, fullInfo });
     } catch (error) {
       status = 'fail';
       errorMsg =
@@ -540,8 +557,7 @@ export class QishuiService {
       );
     }
 
-    const contentType =
-      response.headers.get('content-type') || 'image/jpeg';
+    const contentType = response.headers.get('content-type') || 'image/jpeg';
     const arrayBuffer = await response.arrayBuffer();
     return {
       buffer: Buffer.from(arrayBuffer),

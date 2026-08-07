@@ -140,6 +140,7 @@ export interface QishuiTrackPlayer {
 
 /** 获取歌曲详情响应 */
 export interface GetQishuiTrackResponse {
+  status_code?: number;
   lyric?: QishuiLyric;
   track?: QishuiTrack;
   /** 视频实体（media_type=video 时返回） */
