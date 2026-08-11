@@ -1,7 +1,7 @@
 import {
   PaginationQuerySchema,
   paginationQueryShape,
-} from '@/common/dto/pagination.dto';
+} from '@/common/dtos/pagination.dto';
 import { Gender } from '@/types/global';
 import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';

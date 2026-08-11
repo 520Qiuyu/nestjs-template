@@ -1,5 +1,5 @@
 import { Public } from '@/auth/decorator/auth.decorator';
-import { RequestMeta } from '@/common/decorator/request-meta.decorator';
+import { RequestMeta } from '@/common/decorators/request-meta.decorator';
 import {
   GetPlaylistDetailQueryDto,
   GetSongInfoQueryDto,

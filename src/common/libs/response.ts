@@ -52,6 +52,19 @@ export function generateForbidden<T>(
   };
 }
 
+/** 生成操作频繁响应数据 */
+export function generateTooFrequent<T>(
+  message: string,
+  options?: Partial<Omit<Response<T>, 'message'>>,
+): Response<T> {
+  const { code = 429, data = null } = options || {};
+  return {
+    code,
+    message,
+    data,
+  };
+}
+
 /** 生成响应数据 */
 export function generateResponse<T>(options: Response<T>): Response<T> {
   return options;

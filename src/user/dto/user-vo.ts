@@ -1,4 +1,4 @@
-import { PaginatedResultSchema } from '@/common/dto/pagination.dto';
+import { PaginatedResultSchema } from '@/common/dtos/pagination.dto';
 import {
   PermissionResourceItemSchema,
   PermissionRoleItemSchema,

@@ -1,7 +1,7 @@
 import {
   PaginationQuerySchema,
   paginationQueryShape,
-} from '@/common/dto/pagination.dto';
+} from '@/common/dtos/pagination.dto';
 import {
   PermissionResourceMethod,
   PermissionResourceType,

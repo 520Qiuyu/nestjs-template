@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { generateOk } from 'src/common/libs/response';
 import { AuthService } from './auth.service';
 import { Public } from './decorator/auth.decorator';
+import { RateLimit } from '@/common/decorators/rate-limit.decorator';
 
 @Controller('auth')
 export class AuthController {
@@ -14,6 +15,7 @@ export class AuthController {
 
   // 登录
   @Public()
+  @RateLimit(5, 60)
   @Post('login')
   login(@Body() body: LoginRequestBodyDto) {
     return this.authService.login(body);
@@ -21,6 +23,7 @@ export class AuthController {
 
   // 注册
   @Public()
+  @RateLimit(5, 60)
   @Post('register')
   register(@Body() body: RegisterRequestBodyDto) {
     return this.authService.register(body);

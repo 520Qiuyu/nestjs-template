@@ -4,6 +4,7 @@ import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core';
 import { ZodSerializerInterceptor, ZodValidationPipe } from 'nestjs-zod';
 import { AuthGuard } from './auth/auth.guard';
 import { AuthModule } from './auth/auth.module';
+import { RateLimitGuard } from './common/guards/rate-limit.guard';
 import loadConfigs from './common/libs/loadConfigs';
 import { HttpExceptionFilter } from './filters/http-exception-filter';
 import { IpBlacklistModule } from './ipBlacklist/ip-blacklist.module';
@@ -41,6 +42,11 @@ import { UserModule } from './user/user.module';
     {
       provide: APP_FILTER,
       useClass: HttpExceptionFilter,
+    },
+    // 使用 RateLimitGuard 做接口限流（仅对配置了 @RateLimit 的路由生效）
+    {
+      provide: APP_GUARD,
+      useClass: RateLimitGuard,
     },
     // 使用AuthGuard来路由鉴权
     {

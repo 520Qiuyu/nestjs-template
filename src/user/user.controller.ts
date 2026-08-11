@@ -1,6 +1,6 @@
 import { Public } from '@/auth/decorator/auth.decorator';
 import { CurrentUser } from '@/auth/decorator/current-user.decorator';
-import { BatchImportResultDto } from '@/common/dto/batch-import.dto';
+import { BatchImportResultDto } from '@/common/dtos/batch-import.dto';
 import {
   AdminUpdateUserDto,
   BatchImportUsersDto,

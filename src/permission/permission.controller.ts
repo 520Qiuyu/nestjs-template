@@ -40,7 +40,7 @@ import {
 } from '@nestjs/common';
 import { ZodSerializerDto } from 'nestjs-zod';
 import { PermissionService } from './permission.service';
-import { BatchImportResultDto } from '@/common/dto/batch-import.dto';
+import { BatchImportResultDto } from '@/common/dtos/batch-import.dto';
 
 // 权限管理控制器
 @Controller('permission')

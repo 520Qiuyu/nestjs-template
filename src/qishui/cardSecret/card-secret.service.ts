@@ -1,4 +1,4 @@
-import type { PaginatedResultVo } from '@/common/dto/pagination.dto';
+import type { PaginatedResultVo } from '@/common/dtos/pagination.dto';
 import { generateError, generateOk } from '@/common/libs/response';
 import { PrismaService } from '@/prisma.service';
 import { UserService } from '@/user/user.service';

@@ -1,4 +1,4 @@
-import { PaginationQuerySchema } from '@/common/dto/pagination.dto';
+import { PaginationQuerySchema } from '@/common/dtos/pagination.dto';
 import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';
 

@@ -28,8 +28,8 @@ import type {
   UpdatePermissionRoleResourceDto,
   UpdatePermissionUserRoleDto,
 } from './dto/permission-dto';
-import type { PaginatedResultVo } from '@/common/dto/pagination.dto';
-import type { BatchImportResult } from '@/common/dto/batch-import.dto';
+import type { PaginatedResultVo } from '@/common/dtos/pagination.dto';
+import type { BatchImportResult } from '@/common/dtos/batch-import.dto';
 
 @Injectable()
 export class PermissionService {

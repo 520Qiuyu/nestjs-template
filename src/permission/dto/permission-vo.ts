@@ -1,4 +1,4 @@
-import { PaginatedResultSchema } from '@/common/dto/pagination.dto';
+import { PaginatedResultSchema } from '@/common/dtos/pagination.dto';
 import { createResponseSchema, PermissionResourceMethod } from '@/types/global';
 import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';

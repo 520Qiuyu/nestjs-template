@@ -19,7 +19,7 @@ import {
 import { CardSecretService } from './cardSecret/card-secret.service';
 import type { CreateParseLogInput } from './logs/dto/logs.dto';
 import { LogsService } from './logs/logs.service';
-import type { RequestMeta } from '@/common/decorator/request-meta.decorator';
+import type { RequestMeta } from '@/common/decorators/request-meta.decorator';
 import { getQishuiImageUrl, parseLink } from './utils';
 import {
   getQishuiPlaylistUrl,

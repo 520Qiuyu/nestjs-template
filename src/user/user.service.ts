@@ -1,6 +1,6 @@
 import type { RegisterRequestBodyDto } from '@/auth/dto/auth';
-import type { BatchImportResult } from '@/common/dto/batch-import.dto';
-import { PaginatedResultVo } from '@/common/dto/pagination.dto';
+import type { BatchImportResult } from '@/common/dtos/batch-import.dto';
+import { PaginatedResultVo } from '@/common/dtos/pagination.dto';
 import { encryptPassword } from '@/common/libs/encrypt';
 import type {
   AdminUpdateUserDto,
