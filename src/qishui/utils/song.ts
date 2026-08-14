@@ -1,4 +1,4 @@
-import type { KrcLyrics, MusicInfo } from '@/types/qishui/song';
+import type { KrcLyrics, MusicInfo, UgcVideoPageData } from '@/types/qishui/song';
 import { parseRouterData } from '.';
 
 /**
@@ -93,7 +93,62 @@ export const krcToLrc = (
 };
 
 /**
- * 解析音乐信息。
+ * 将 ugc 视频分享页数据转为 MusicInfo。
+ *
+ * @example
+ * const info = formatUgcVideoMusicInfo(routerData.loaderData.ugc_video_page);
+ */
+export const formatUgcVideoMusicInfo = (
+  page?: UgcVideoPageData | null,
+): MusicInfo | null => {
+  const options = page?.videoOptions;
+  if (!page || !options) {
+    return null;
+  }
+
+  const title = options.videoName || '未知歌曲';
+  const artist = options.artistName || '未知歌手';
+  const playUrl = options.url ? encodeURI(decodeURI(options.url)) : '';
+
+  return {
+    type: 'video',
+    trackId: page.video_id || options.video_id,
+    title,
+    artist,
+    artists: artist
+      ? [
+          {
+            id: '',
+            name: artist,
+            avatar: options.artistThumbAvatarArr?.[0],
+          },
+        ]
+      : [],
+    album: '未知专辑',
+    cover:
+      options.coverURL ||
+      options.metaURL ||
+      options.firstFrameURL ||
+      'https://via.placeholder.com/120',
+    lrcText: '',
+    urls: playUrl
+      ? [
+          {
+            url: playUrl,
+            quality: 'medium',
+            size: 0,
+            format: 'mp4',
+            encryptionMethod: '',
+            playAuth: '',
+            playAuthID: '',
+          },
+        ]
+      : [],
+  };
+};
+
+/**
+ * 解析音乐信息（歌曲分享页或 ugc 视频分享页）。
  *
  * @example
  * const musicInfo = await parseMusicInfo(html);
@@ -103,13 +158,9 @@ export const parseMusicInfo = async (html: string) => {
     throw new Error('请传入页面 HTML 内容');
   }
 
-  let musicInfo: MusicInfo = {
-    lrcText: '',
-  };
-
   const routerData = parseRouterData(html);
-  console.log('routerData', routerData);
 
+  // 音频
   const audioWithLyricsOption =
     routerData?.loaderData?.track_page?.audioWithLyricsOption;
   if (audioWithLyricsOption) {
@@ -123,7 +174,9 @@ export const parseMusicInfo = async (html: string) => {
       : '';
     const lrc = `[ti:${title}]\n[ar:${artist}]\n${parseLrc(audioWithLyricsOption.lyrics)}`;
     const lrcTxt = parseLrc(audioWithLyricsOption.lyrics, 'txt');
-    musicInfo = {
+
+    return {
+      type: 'track',
       trackId: routerData?.loaderData?.track_page?.track_id,
       title,
       artist,
@@ -131,8 +184,6 @@ export const parseMusicInfo = async (html: string) => {
       cover,
       lrc,
       lrcText: lrcTxt,
-      // @ts-ignore
-      // routerData,
       urls: [
         {
           url,
@@ -144,15 +195,16 @@ export const parseMusicInfo = async (html: string) => {
           playAuthID: '',
         },
       ],
-    };
-
-    // 尝试获取完整版链接
-    return musicInfo;
+    } satisfies MusicInfo;
   }
 
-  if (!musicInfo) {
-    throw new Error('未找到音乐信息');
+  // 视频
+  const videoInfo = formatUgcVideoMusicInfo(
+    routerData?.loaderData?.ugc_video_page,
+  );
+  if (videoInfo) {
+    return videoInfo;
   }
 
-  return musicInfo;
+  throw new Error('未找到音乐信息');
 };

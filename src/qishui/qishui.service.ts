@@ -26,7 +26,7 @@ import {
   normalizePlaylistDetailResponse,
   parsePlaylistInfo,
 } from './utils/platlist';
-import { krcToLrc, parseMusicInfo } from './utils/song';
+import { krcToLrc, parseMusicInfo, formatUgcVideoMusicInfo } from './utils/song';
 
 /** 临时测试用认证信息，后续改为从认证信息表读取 */
 const TEMP_AUTH_INFO: QishuiAuthParams = {
@@ -75,6 +75,7 @@ export class QishuiService {
       }
       const { url_player_info } = track_player || {};
       const musicInfo: MusicInfo = {
+        type: 'track',
         trackId,
         title: trackInfo.track?.name || '未知歌曲',
         artist:
@@ -163,6 +164,13 @@ export class QishuiService {
         return generateOk({ shareLink, musicInfo });
       }
 
+      if (musicInfo?.type === 'video') {
+        if (musicInfo.urls?.length) {
+          this.cardSecretService.increaseParseCount(query.cardSecret);
+        }
+        return generateOk({ shareLink, musicInfo, fullInfo: musicInfo });
+      }
+
       const fullInfo = await this.parseSongInfo(targetId);
       if (fullInfo?.title) targetName = fullInfo.title;
       if (fullInfo?.trackId) targetId = fullInfo.trackId;
@@ -180,7 +188,7 @@ export class QishuiService {
     } finally {
       this.safeCreateParseLog({
         cardSecret: query.cardSecret || null,
-        type: 'song',
+        type: musicInfo?.type === 'video' ? 'video' : 'song',
         targetName,
         targetId,
         status,
@@ -423,44 +431,14 @@ export class QishuiService {
   async parseVideoInfo(videoId: string): Promise<MusicInfo | null> {
     try {
       const page = await getQishuiVideo(videoId);
-      const options = page.videoOptions;
-      const title = options?.videoName || '未知歌曲';
-      const artist = options?.artistName || '未知歌手';
-      const playUrl = options?.url ? encodeURI(decodeURI(options.url)) : '';
-
-      return {
-        // @ts-ignore
-        page,
-        trackId: page.video_id || options?.video_id || videoId,
-        title,
-        artist,
-        artists: artist
-          ? [
-              {
-                id: '',
-                name: artist,
-                avatar: options?.artistThumbAvatarArr?.[0],
-              },
-            ]
-          : [],
-        album: '未知专辑',
-        cover:
-          options?.coverURL ||
-          options?.metaURL ||
-          options?.firstFrameURL ||
-          'https://via.placeholder.com/120',
-        urls: playUrl
-          ? [
-              {
-                url: playUrl,
-                quality: 'medium',
-                size: 0,
-                format: 'mp4',
-                encryptionMethod: '',
-              },
-            ]
-          : [],
-      };
+      const musicInfo = formatUgcVideoMusicInfo(page);
+      if (!musicInfo) {
+        return null;
+      }
+      if (!musicInfo.trackId) {
+        musicInfo.trackId = videoId;
+      }
+      return musicInfo;
     } catch (error) {
       console.error('获取视频信息失败:', error);
       return null;
