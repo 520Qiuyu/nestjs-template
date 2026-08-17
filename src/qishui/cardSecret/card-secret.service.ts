@@ -5,6 +5,7 @@ import { UserService } from '@/user/user.service';
 import { Injectable } from '@nestjs/common';
 import type { CardSecret, User } from '@prisma/client';
 import { randomBytes } from 'crypto';
+import { isCardSecretExpired } from './card-secret-time';
 import type {
   CreateCardSecretDto,
   ListCardSecretQueryDto,
@@ -129,12 +130,7 @@ export class CardSecretService {
     if (checkStatus && cardSecret.status !== 'normal') {
       return '卡密已禁用!';
     }
-    if (
-      checkExpire &&
-      cardSecret.type === 'time' &&
-      cardSecret.expireTime &&
-      cardSecret.expireTime < new Date()
-    ) {
+    if (checkExpire && isCardSecretExpired(cardSecret)) {
       return '卡密已过期!';
     }
     if (
@@ -178,9 +174,10 @@ export class CardSecretService {
     if (!cardSecret) {
       return '卡密不存在!';
     }
-
+    const { enableTime } = cardSecret;
     const today = this.getStartOfToday();
     const isToday = this.isSameCalendarDay(cardSecret.dailyParseDate, today);
+    const shouldEnable = !enableTime;
     const updated = await this.prisma.cardSecret.update({
       where: { id: cardSecret.id },
       data: {
@@ -192,6 +189,8 @@ export class CardSecretService {
               dailyParseDate: today,
             }
           : {}),
+        // 首次成功解析时写入启用时间；不改写 expireTime
+        ...(shouldEnable ? { enableTime: new Date() } : {}),
       },
     });
     return updated;
@@ -369,6 +368,8 @@ export class CardSecretService {
       ctime: true,
       utime: true,
       expireTime: true,
+      enableTime: true,
+      validDays: true,
       parsedCount: true,
     } as const;
     const orderField =
@@ -567,6 +568,8 @@ export class CardSecretService {
         secret: true,
         type: true,
         expireTime: true,
+        enableTime: true,
+        validDays: true,
         parseLimit: true,
         parsedCount: true,
         dailyParseLimit: true,
@@ -611,6 +614,8 @@ export class CardSecretService {
       secret,
       type: body.type,
       expireTime: body.type === 'time' ? (body.expireTime ?? null) : null,
+      enableTime: body.type === 'time' ? (body.enableTime ?? null) : null,
+      validDays: body.type === 'time' ? (body.validDays ?? null) : null,
       parseLimit: body.type === 'count' ? (body.parseLimit ?? 0) : 0,
       parsedCount: 0,
       dailyParseLimit,
@@ -658,12 +663,27 @@ export class CardSecretService {
     if (nextType === 'time') {
       const expireTime =
         body.expireTime !== undefined ? body.expireTime : existing.expireTime;
-      if (!expireTime) {
-        return generateError('按时间类型必须设置过期时间');
+      const validDays =
+        body.validDays !== undefined ? body.validDays : existing.validDays;
+      if (!expireTime && (validDays == null || validDays < 1)) {
+        return generateError('按时间类型必须设置过期时间或有效期天数');
       }
       // 代理用户不能修改过期时间比上次小，只能改大
-      if (isProxy && expireTime && existing.expireTime && expireTime < existing.expireTime) {
+      if (
+        isProxy &&
+        expireTime &&
+        existing.expireTime &&
+        expireTime < existing.expireTime
+      ) {
         return generateError('过期时间不能小于上次时间');
+      }
+      if (
+        isProxy &&
+        validDays != null &&
+        existing.validDays != null &&
+        validDays < existing.validDays
+      ) {
+        return generateError('有效期天数不能小于上次天数');
       }
     }
     if (nextType === 'count') {
@@ -673,7 +693,12 @@ export class CardSecretService {
         return generateError('按数量类型必须设置可解析数量');
       }
       // 代理用户不能修改可解析数量比上次小，只能改大
-      if (isProxy && parseLimit && existing.parseLimit && parseLimit < existing.parseLimit) {
+      if (
+        isProxy &&
+        parseLimit &&
+        existing.parseLimit &&
+        parseLimit < existing.parseLimit
+      ) {
         return generateError('可解析数量不能小于上次数量');
       }
     }
@@ -713,6 +738,18 @@ export class CardSecretService {
             ? body.expireTime !== undefined
               ? body.expireTime
               : existing.expireTime
+            : null,
+        enableTime:
+          nextType === 'time'
+            ? body.enableTime !== undefined
+              ? body.enableTime
+              : existing.enableTime
+            : null,
+        validDays:
+          nextType === 'time'
+            ? body.validDays !== undefined
+              ? body.validDays
+              : existing.validDays
             : null,
         parseLimit:
           nextType === 'count'

@@ -200,6 +200,10 @@ model CardSecret {
   type             String    @default("time")
   // 过期时间
   expireTime       DateTime?
+  // 启用时间
+  enableTime       DateTime?
+  // 有效期（天）
+  validDays        Int?
   // 可解析数量
   parseLimit       Int       @default(0)
   // 已解析数量

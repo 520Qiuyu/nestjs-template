@@ -37,6 +37,10 @@ export const CreateCardSecretSchema = z
     createCount: z.coerce.number().int().min(1).max(100).default(1),
     type: CardSecretTypeSchema,
     expireTime: z.coerce.date().nullable().optional(),
+    enableTime: z.coerce.date().nullable().optional(),
+    validDays: z
+      .union([z.coerce.number().int().min(1).max(3650), z.null()])
+      .optional(),
     parseLimit: z.coerce.number().int().min(1).max(99999).optional(),
     /** 每日最多解析数量（时长卡）；传 null 表示不限制 */
     dailyParseLimit: z
@@ -47,11 +51,11 @@ export const CreateCardSecretSchema = z
     status: CardSecretStatusSchema.default('normal'),
   })
   .superRefine((data, ctx) => {
-    if (data.type === 'time' && !data.expireTime) {
+    if (data.type === 'time' && !data.expireTime && data.validDays == null) {
       ctx.addIssue({
         code: 'custom',
-        path: ['expireTime'],
-        message: '按时间类型必须设置过期时间',
+        path: ['validDays'],
+        message: '按时间类型必须设置过期时间或有效期天数',
       });
     }
     if (data.type === 'count' && !data.parseLimit) {
@@ -70,6 +74,10 @@ export const UpdateCardSecretSchema = z
   .object({
     type: CardSecretTypeSchema.optional(),
     expireTime: z.coerce.date().nullable().optional(),
+    enableTime: z.coerce.date().nullable().optional(),
+    validDays: z
+      .union([z.coerce.number().int().min(1).max(3650), z.null()])
+      .optional(),
     parseLimit: z.coerce.number().int().min(1).max(99999).optional(),
     /** 每日最多解析数量（时长卡）；传 null 表示不限制 */
     dailyParseLimit: z
