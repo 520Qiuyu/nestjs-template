@@ -83,10 +83,13 @@ export type {
   QishuiBitRate,
   QishuiImage,
   QishuiLyric,
+  QishuiPlayEncryptInfo,
   QishuiPlayInfoData,
   QishuiPlayInfoItem,
   QishuiPlayVideoItem,
+  QishuiPlayVideoMeta,
   QishuiTrack,
   QishuiTrackPlayer,
   QishuiVideoModel,
+  QishuiVideoVolume,
 } from './track';

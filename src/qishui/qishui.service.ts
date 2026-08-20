@@ -7,12 +7,13 @@ import type {
   PlaylistParseShareLinkQueryDto,
 } from '@/qishui/dto/qishui-dto';
 import type { QishuiAuthParams } from '@/types/qishui';
-import type { MusicInfo } from '@/types/qishui/song';
+import type { IUrl, MusicInfo } from '@/types/qishui/song';
 import type { GetQishuiPlaylistDetailResponse } from '@/types/qishui/platlist';
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { getQishuiPlaylistDetail } from './apis/playlist';
 import {
   getQishuiSongPlayUrl,
+  getQishuiSongPlayUrlByVideoModel,
   getQishuiTrack,
   getQishuiVideo,
 } from './apis/song';
@@ -26,7 +27,11 @@ import {
   normalizePlaylistDetailResponse,
   parsePlaylistInfo,
 } from './utils/platlist';
-import { krcToLrc, parseMusicInfo, formatUgcVideoMusicInfo } from './utils/song';
+import {
+  krcToLrc,
+  parseMusicInfo,
+  formatUgcVideoMusicInfo,
+} from './utils/song';
 
 /** 临时测试用认证信息，后续改为从认证信息表读取 */
 const TEMP_AUTH_INFO: QishuiAuthParams = {
@@ -73,7 +78,7 @@ export class QishuiService {
       if (status_code === 1000005) {
         return null;
       }
-      const { url_player_info } = track_player || {};
+      const { url_player_info, video_model } = track_player || {};
       const musicInfo: MusicInfo = {
         type: 'track',
         trackId,
@@ -93,25 +98,27 @@ export class QishuiService {
         cover: getQishuiImageUrl(track?.album?.url_cover),
         lrc: `[ti:${trackInfo.track?.name}]\n[ar:${track?.artists?.map((artist) => artist.name).join(',')}]\n${krcToLrc(lyric?.content)}`,
         lrcText: krcToLrc(lyric?.content, 'text'),
-/*         // @ts-ignore
+        /* // @ts-ignore
         trackInfo, */
       };
 
-      if (!url_player_info) {
+      if (!url_player_info && !video_model) {
         console.warn('获取歌曲播放链接失败');
         return musicInfo;
       }
 
       // 2、获取歌曲播放链接
-      try {
-        const urls = await getQishuiSongPlayUrl(
-          TEMP_AUTH_INFO,
-          url_player_info,
-        );
-        musicInfo.urls = urls;
-      } catch (error) {
-        console.log('error', error);
+      let urls: IUrl[] = [];
+      if (video_model) {
+        urls = await getQishuiSongPlayUrlByVideoModel(video_model);
+      } else {
+        try {
+          urls = await getQishuiSongPlayUrl(TEMP_AUTH_INFO, url_player_info!);
+        } catch (error) {
+          console.log('error', error);
+        }
       }
+      musicInfo.urls = urls;
       return musicInfo;
     } catch (error) {
       console.error('获取歌曲信息失败:', error);

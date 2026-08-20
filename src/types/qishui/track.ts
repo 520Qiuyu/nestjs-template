@@ -97,34 +97,63 @@ export interface QishuiTrack {
   media_type?: string;
 }
 
+/** 汽水播放资源音量信息 */
+export interface QishuiVideoVolume {
+  loudness?: number;
+  peak?: number;
+  maximum_momentary_loudness?: number;
+  maximum_short_term_loudness?: number;
+  loudness_range_start?: number;
+  loudness_range_end?: number;
+  loudness_range?: number;
+  version?: number;
+  volume_info_json?: string;
+}
+
+/** 汽水播放资源元信息 */
+export interface QishuiPlayVideoMeta {
+  quality?: string;
+  vtype?: string;
+  bitrate?: number;
+  codec_type?: string;
+  size?: number;
+  file_id?: string;
+  file_hash?: string;
+  real_bitrate?: number;
+  encode_user_tag?: string;
+  audio_sample_rate?: string;
+}
+
+/** 汽水播放资源加密信息 */
+export interface QishuiPlayEncryptInfo {
+  encrypt?: boolean;
+  kid?: string;
+  /** 解密密钥，对应 IUrl.playAuth */
+  spade_a?: string;
+  encryption_method?: string;
+}
+
 /** 汽水播放资源条目（video_model 解析后） */
 export interface QishuiPlayVideoItem {
   main_url?: string;
   backup_url?: string;
-  video_meta?: {
-    quality?: string;
-    vtype?: string;
-    bitrate?: number;
-    codec_type?: string;
-    size?: number;
-  };
-  encrypt_info?: {
-    encrypt?: boolean;
-    kid?: string;
-    spade_a?: string;
-    encryption_method?: string;
-  };
+  video_meta?: QishuiPlayVideoMeta;
+  encrypt_info?: QishuiPlayEncryptInfo;
+  gear_des_key?: string;
+  volume?: QishuiVideoVolume;
 }
 
 /** 汽水播放模型（video_model JSON 解析后） */
 export interface QishuiVideoModel {
   status?: number;
   message?: string;
+  version?: number;
   video_id?: string;
   video_duration?: number;
   media_type?: string;
   url_expire?: number;
   video_list?: QishuiPlayVideoItem[];
+  volume?: QishuiVideoVolume;
 }
 
 /** 汽水播放器信息 */

@@ -4,6 +4,7 @@ import type {
   GetQishuiTrackParams,
   GetQishuiTrackResponse,
   QishuiAuthParams,
+  QishuiVideoModel,
 } from '@/types/qishui';
 import type { IUrl, UgcVideoPageData } from '@/types/qishui/song';
 import { parseRouterData } from '../utils';
@@ -81,10 +82,43 @@ export const getQishuiSongPlayUrl = async (
       quality: item.Quality,
       size: item.Size,
       format: item.Format,
+      codec: item.Codec,
       encryptionMethod: item.EncryptionMethod,
       playAuth: item.PlayAuth,
       playAuthID: item.PlayAuthID,
     };
   });
   return urls;
+};
+
+/**
+ * 通过 video_model 获取歌曲播放链接
+ * @example
+ * ```ts
+ * const urls = await getQishuiSongPlayUrlByVideoModel(track_player.video_model);
+ * ```
+ */
+export const getQishuiSongPlayUrlByVideoModel = async (
+  videoModel: string,
+): Promise<IUrl[]> => {
+  try {
+    const model = JSON.parse(videoModel) as QishuiVideoModel;
+    const videoList = model.video_list || [];
+    const urls: IUrl[] = videoList.map((item) => {
+      return {
+        url: item.main_url || item.backup_url || '',
+        quality: item.video_meta?.quality || '',
+        size: item.video_meta?.size || 0,
+        format: item.video_meta?.vtype || '',
+        codec: item.video_meta?.codec_type || '',
+        encryptionMethod: item.encrypt_info?.encryption_method || '',
+        playAuth: item.encrypt_info?.spade_a,
+        playAuthID: item.encrypt_info?.kid,
+      };
+    });
+    return urls;
+  } catch (error) {
+    console.log('error', error);
+    return [];
+  }
 };
