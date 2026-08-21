@@ -29,7 +29,7 @@ const DEFAULT_ADMIN = {
   password: 'admin123',
   nickname: '管理员',
   /** 绑定的角色编码 */
-  roleCode: 'admin',
+  roleCode: 'super_admin',
 } as const;
 
 /**
