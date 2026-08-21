@@ -176,6 +176,18 @@ export type PlaylistPageData = {
   playlistInfo?: RawPlaylistInfo;
 };
 
+/** 专辑分享页 loader 数据 */
+export type AlbumPageData = {
+  trackList?: PlaylistTrack[];
+  albumInfo?: {
+    id?: string;
+    name?: string;
+    artists?: PlaylistTrackArtist[];
+    count_tracks?: number;
+    url_cover?: QishuiImage;
+  };
+};
+
 export type PlaylistMusicInfo = /* MusicInfo &  */ {
   id?: string;
   type?: 'video' | 'track';
@@ -194,4 +206,6 @@ export type PlaylistInfo = {
   owner: string;
   countTracks: number;
   tracks: PlaylistMusicInfo[];
+  /** 分享页来源：歌单 / 专辑 */
+  source?: 'playlist' | 'album';
 };

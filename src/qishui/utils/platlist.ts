@@ -1,4 +1,5 @@
 import type {
+  AlbumPageData,
   GetQishuiPlaylistDetailResponse,
   PlaylistInfo,
   PlaylistMedia,
@@ -185,6 +186,43 @@ export const normalizePlaylistInfo = (
       tracks.length ||
       0,
     tracks,
+    source: 'playlist',
+  };
+};
+
+/**
+ * 将专辑分享页曲目列表格式化为页面可复用的曲目信息
+ * @example
+ * const tracks = formatAlbumTrackList(albumPage.trackList);
+ */
+const formatAlbumTrackList = (trackList?: PlaylistTrack[] | null) =>
+  trackList
+    ?.map((track) => formatPlaylistMusicInfo(track))
+    .filter((track): track is PlaylistMusicInfo => Boolean(track)) || [];
+
+/**
+ * 将专辑分享页数据归一化为与歌单解析一致的结构
+ * @example
+ * const albumInfo = normalizeAlbumInfo(albumPage);
+ */
+export const normalizeAlbumInfo = (albumPage: AlbumPageData): PlaylistInfo => {
+  const albumInfo = albumPage.albumInfo;
+  if (!albumInfo) {
+    throw new Error('未找到专辑信息');
+  }
+
+  const tracks = formatAlbumTrackList(albumPage.trackList);
+
+  return {
+    id: albumInfo.id,
+    title: albumInfo.name || '未知专辑',
+    cover:
+      getQishuiImageUrl(albumInfo.url_cover) ||
+      'https://via.placeholder.com/120',
+    owner: formatPlaylistArtists(albumInfo.artists),
+    countTracks: albumInfo.count_tracks || tracks.length || 0,
+    tracks,
+    source: 'album',
   };
 };
 
@@ -214,9 +252,15 @@ export const parsePlaylistInfo = async (html: string) => {
   }
   const routerData = parseRouterData(html);
   const playlistPage = routerData?.loaderData?.playlist_page;
-  if (!playlistPage?.playlistInfo) {
-    throw new Error('未找到歌单信息');
+  const albumPage = routerData?.loaderData?.album_page;
+
+  if (playlistPage?.playlistInfo) {
+    return normalizePlaylistInfo(playlistPage.playlistInfo, playlistPage.medias);
   }
 
-  return normalizePlaylistInfo(playlistPage.playlistInfo, playlistPage.medias);
+  if (albumPage?.albumInfo) {
+    return normalizeAlbumInfo(albumPage);
+  }
+
+  throw new Error('未找到歌单或专辑信息');
 };

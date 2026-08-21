@@ -233,6 +233,12 @@ export class QishuiService {
         return generateOk({ shareLink: query.shareLink, routerData: preview });
       }
 
+      // 专辑分享页已含完整 trackList，不能走歌单详情接口
+      if (preview.source === 'album') {
+        return generateOk({ shareLink: query.shareLink, routerData: preview });
+      }
+
+      // 歌单分享页走详情接口拉全量
       try {
         const detail = await this.fetchPlaylistDetailAll(String(preview.id));
         const routerData = normalizePlaylistDetailResponse(detail);

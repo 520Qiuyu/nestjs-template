@@ -1,4 +1,4 @@
-import { PlaylistPageData } from './platlist';
+import { AlbumPageData, PlaylistPageData } from './platlist';
 import { TrackPageData, UgcVideoPageData } from './song';
 
 /** 汽水接口认证参数 */
@@ -68,6 +68,7 @@ export type RouterData = {
   loaderData?: {
     track_page?: TrackPageData;
     playlist_page?: PlaylistPageData;
+    album_page?: AlbumPageData;
     ugc_video_page?: UgcVideoPageData;
     ugc_video_layout?: unknown;
   };
