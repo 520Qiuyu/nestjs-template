@@ -8,6 +8,7 @@ import { RateLimitGuard } from './common/guards/rate-limit.guard';
 import loadConfigs from './common/libs/loadConfigs';
 import { HttpExceptionFilter } from './filters/http-exception-filter';
 import { IpBlacklistModule } from './ipBlacklist/ip-blacklist.module';
+import { NeteaseModule } from './netease/netease.module';
 import { PermissionModule } from './permission/permission.module';
 import { PrismaService } from './prisma.service';
 import { QishuiModule } from './qishui/qishui.module';
@@ -23,6 +24,7 @@ import { UserModule } from './user/user.module';
     PermissionModule,
     UserModule,
     QishuiModule,
+    NeteaseModule,
     IpBlacklistModule,
   ],
   controllers: [],
