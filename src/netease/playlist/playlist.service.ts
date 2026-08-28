@@ -1,9 +1,16 @@
 import { generateError, generateOk } from '@/common/libs/response';
+import type { Response } from '@/types/global';
 import { Injectable } from '@nestjs/common';
 import {
   playlist_detail,
   playlist_track_all,
 } from '@neteasecloudmusicapienhanced/api';
+import type {
+  NeteasePlaylistDetail,
+  NeteasePlaylistTrackAll,
+  NeteasePrivilege,
+  NeteaseSong,
+} from '../types';
 import type {
   GetNeteasePlaylistDetailQueryDto,
   GetNeteasePlaylistTrackAllQueryDto,
@@ -21,19 +28,24 @@ export class NeteasePlaylistService {
    * const res = await this.getPlaylistDetail({ id: '7044354223' });
    * ```
    */
-  async getPlaylistDetail(query: GetNeteasePlaylistDetailQueryDto) {
+  async getPlaylistDetail(
+    query: GetNeteasePlaylistDetailQueryDto,
+  ): Promise<Response<NeteasePlaylistDetail>> {
     try {
       const res = await playlist_detail({ id: query.id });
       const { status, body } = res || {};
       if (status === 200 && body?.code === 200) {
-        return generateOk(body);
+        return generateOk(body as unknown as NeteasePlaylistDetail);
       }
-      return generateError((body?.message as string) || '获取歌单详情失败', {
-        code: Number(body?.code) || 500,
-        data: null,
-      });
+      return generateError<NeteasePlaylistDetail>(
+        (body?.message as string) || '获取歌单详情失败',
+        {
+          code: Number(body?.code) || 500,
+          data: null,
+        },
+      );
     } catch (error) {
-      return generateError(
+      return generateError<NeteasePlaylistDetail>(
         error instanceof Error ? error.message : '获取歌单详情失败',
       );
     }
@@ -47,7 +59,9 @@ export class NeteasePlaylistService {
    * const page = await this.getPlaylistTrackAll({ id: '7044354223', limit: 50, offset: 0 });
    * ```
    */
-  async getPlaylistTrackAll(query: GetNeteasePlaylistTrackAllQueryDto) {
+  async getPlaylistTrackAll(
+    query: GetNeteasePlaylistTrackAllQueryDto,
+  ): Promise<Response<NeteasePlaylistTrackAll>> {
     try {
       const { id, limit, offset } = query;
       if (limit) {
@@ -57,9 +71,9 @@ export class NeteasePlaylistService {
         });
       }
 
-      const songs: unknown[] = [];
-      const privileges: unknown[] = [];
-      let firstBody: Record<string, unknown> | null = null;
+      const songs: NeteaseSong[] = [];
+      const privileges: NeteasePrivilege[] = [];
+      let firstBody: NeteasePlaylistTrackAll | null = null;
 
       for (let page = 0; page < TRACK_MAX_PAGES; page += 1) {
         const offset = page * TRACK_PAGE_SIZE;
@@ -70,16 +84,19 @@ export class NeteasePlaylistService {
         });
         if (res.body?.code !== 200) {
           if (!firstBody) {
-            return generateError(
+            return generateError<NeteasePlaylistTrackAll>(
               (res.body?.msg as string) || '获取歌单歌曲失败',
-              { code: Number(res.body?.code) || 500, data: res.body },
+              {
+                code: Number(res.body?.code) || 500,
+                data: res.body as unknown as NeteasePlaylistTrackAll,
+              },
             );
           }
           break;
         }
-        if (!firstBody) firstBody = res.body;
-        const pageSongs = (res.body.songs as unknown[]) || [];
-        const pagePrivileges = (res.body.privileges as unknown[]) || [];
+        if (!firstBody) firstBody = res.body as unknown as NeteasePlaylistTrackAll;
+        const pageSongs = (res.body.songs as NeteaseSong[]) || [];
+        const pagePrivileges = (res.body.privileges as NeteasePrivilege[]) || [];
         songs.push(...pageSongs);
         privileges.push(...pagePrivileges);
         if (pageSongs.length < TRACK_PAGE_SIZE) {
@@ -91,9 +108,9 @@ export class NeteasePlaylistService {
         ...firstBody,
         songs,
         privileges,
-      });
+      } as NeteasePlaylistTrackAll);
     } catch (error) {
-      return generateError(
+      return generateError<NeteasePlaylistTrackAll>(
         error instanceof Error ? error.message : '获取歌单歌曲失败',
       );
     }
@@ -109,18 +126,21 @@ export class NeteasePlaylistService {
   private async fetchTrackPage(
     id: string,
     page: { limit: number; offset: number },
-  ) {
+  ): Promise<Response<NeteasePlaylistTrackAll>> {
     const res = await playlist_track_all({
       id,
       limit: page.limit,
       offset: page.offset,
     });
     if (res.body?.code !== 200) {
-      return generateError((res.body?.msg as string) || '获取歌单歌曲失败', {
-        code: Number(res.body?.code) || 500,
-        data: res.body,
-      });
+      return generateError<NeteasePlaylistTrackAll>(
+        (res.body?.msg as string) || '获取歌单歌曲失败',
+        {
+          code: Number(res.body?.code) || 500,
+          data: res.body as unknown as NeteasePlaylistTrackAll,
+        },
+      );
     }
-    return generateOk(res.body);
+    return generateOk(res.body as unknown as NeteasePlaylistTrackAll);
   }
 }
