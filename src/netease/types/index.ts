@@ -23,6 +23,7 @@ export type {
   NeteaseSongFreeTrialInfo,
   NeteaseSongLyric,
   NeteaseSongQuality,
+  NeteaseSongQualityData,
   NeteaseSongUrl,
   SoundQualityType,
 } from './song';

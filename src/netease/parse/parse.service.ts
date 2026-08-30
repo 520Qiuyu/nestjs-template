@@ -57,7 +57,12 @@ export class NeteaseParseService {
       });
     }
 
-    return generateOk(pickNeteaseSongParseResult(detailRes.data));
+    return generateOk({
+      song: pickNeteaseSong(detailRes.data.detail.song),
+      // download: pickNeteaseSongUrl(detailRes.data.download),
+      lyric: detailRes.data.lyric,
+      quality: detailRes.data.quality,
+    });
   }
 
   /**
@@ -248,23 +253,5 @@ const pickNeteaseSongUrl = (
     type: url.type,
     encodeType: url.encodeType,
     level: url.level,
-  };
-};
-
-/**
- * 将单曲详情 / 歌词裁剪为前端解析页所需结构
- * @example
- * ```ts
- * const data = pickNeteaseSongParseResult(detailRes.data);
- * ```
- */
-const pickNeteaseSongParseResult = (
-  data: NeteaseSongDetailData,
-): NeteaseParseSongData => {
-  const song = data.detail?.song;
-  return {
-    song: song ? pickNeteaseSong(song) : null,
-    download: pickNeteaseSongUrl(data.download),
-    lyric: data.lyric ?? { lrc: '', lrcText: '' },
   };
 };

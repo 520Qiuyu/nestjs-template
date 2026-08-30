@@ -85,6 +85,35 @@ export interface NeteaseSongQuality {
   vd: number;
   /** 采样率 */
   sr: number;
+  /** 编码标识，如 aac / ste / c51，仅部分档位返回 */
+  it?: string;
+}
+
+/** 歌曲音质详情（song_music_detail） */
+export interface NeteaseSongQualityData {
+  songId: number;
+  /** 高品质 320k */
+  h: NeteaseSongQuality | null;
+  /** 中品质 192k */
+  m: NeteaseSongQuality | null;
+  /** 标准 128k */
+  l: NeteaseSongQuality | null;
+  /** 无损 */
+  sq: NeteaseSongQuality | null;
+  /** Hi-Res */
+  hr: NeteaseSongQuality | null;
+  /** 杜比全景声 */
+  db: NeteaseSongQuality | null;
+  /** 超清母带 */
+  jm: NeteaseSongQuality | null;
+  /** 高清臻音 */
+  je: NeteaseSongQuality | null;
+  /** 沉浸环绕声 */
+  sk: NeteaseSongQuality | null;
+  /** 沉浸环绕声多编码 */
+  sks: NeteaseSongQuality[] | null;
+  /** 臻音全景声 */
+  vi: NeteaseSongQuality | null;
 }
 
 /** 网易云歌曲（歌单 tracks / track-all songs） */
@@ -182,8 +211,9 @@ export interface NeteaseSongLyric {
 /** 获取歌曲详情接口 data */
 export interface NeteaseSongDetailData {
   detail: NeteaseSongDetail;
-  download: NeteaseSongUrl | null;
+  // download: NeteaseSongUrl | null;
   lyric: NeteaseSongLyric;
+  quality: NeteaseSongQualityData | null;
 }
 
 /** 单曲解析裁剪后的下载信息 */
@@ -214,4 +244,5 @@ export interface NeteaseParseSongData {
   song: NeteaseParseSong | null;
   download: NeteaseParseSongUrl | null;
   lyric: NeteaseParseSongLyric;
+  quality: NeteaseSongQualityData | null;
 }
