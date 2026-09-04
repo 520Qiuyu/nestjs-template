@@ -49,7 +49,10 @@ export class NeteaseParseService {
     }
 
     // 获取歌曲详情、歌词
-    const detailRes = await this.songService.getSongDetail({ id });
+    const detailRes = await this.songService.getSongDetail({
+      id,
+      getDownloadUrl: false,
+    });
 
     if (detailRes.code !== 200 || !detailRes.data?.detail?.song) {
       return generateError(detailRes.message || '未解析到有效歌曲信息', {

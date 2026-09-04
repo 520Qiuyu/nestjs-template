@@ -38,18 +38,22 @@ export class NeteaseSongService {
   async getSongDetail({
     id,
     level,
+    getDownloadUrl = false,
   }: GetNeteaseSongDetailQueryDto): Promise<Response<NeteaseSongDetailData>> {
     try {
       const quality = (level ?? 'exhigh') as SoundQualityType; // cspell:ignore exhigh
       const cookie = tempCookie[0];
-      const [detailRes, /* downloadRes, */ lyricRes, qualityRes] = await Promise.all([
+      const [detailRes, downloadRes, lyricRes, qualityRes] = await Promise.all([
         song_detail({ ids: id }),
-        // song_download_url_v1({ id, level: quality, cookie }),
+        getDownloadUrl
+          ? song_download_url_v1({ id, level: quality, cookie })
+          : null,
         lyric({ id }),
         song_music_detail({ id }),
       ]);
       const { songs = [], privileges = [] } = detailRes?.body ?? {};
-      // const { data } = downloadRes.body ?? {};
+      // @ts-ignore
+      const { data: downloadData } = downloadRes?.body ?? {};
       const { lrc } = (lyricRes?.body ?? {}) as { lrc?: { lyric?: string } };
       const lrcContent = lrc?.lyric ?? '';
       const lyricPayload: NeteaseSongLyric = {
@@ -57,13 +61,13 @@ export class NeteaseSongService {
         lrcText: stripLrcText(lrcContent),
       };
       const { data: qualityData } = qualityRes?.body ?? {};
-      console.log('qualityRes',qualityRes)
+      console.log('qualityRes', qualityRes);
       return generateOk({
         detail: {
           song: songs[0] as NeteaseSong | undefined,
           privileges: privileges[0] as NeteasePrivilege | undefined,
         },
-        // download: (data as NeteaseSongUrl | null | undefined) ?? null,
+        download: (downloadData as NeteaseSongUrl | null | undefined) ?? null,
         lyric: lyricPayload,
         quality: qualityData as NeteaseSongQualityData | null,
       });
@@ -140,7 +144,6 @@ export class NeteaseSongService {
       );
     }
   }
-
 }
 
 /**

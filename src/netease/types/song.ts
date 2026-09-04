@@ -211,7 +211,7 @@ export interface NeteaseSongLyric {
 /** 获取歌曲详情接口 data */
 export interface NeteaseSongDetailData {
   detail: NeteaseSongDetail;
-  // download: NeteaseSongUrl | null;
+  download: NeteaseSongUrl | null;
   lyric: NeteaseSongLyric;
   quality: NeteaseSongQualityData | null;
 }

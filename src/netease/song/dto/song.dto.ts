@@ -20,6 +20,12 @@ export const NeteaseSoundQualityLevelSchema = z.enum([
 export const GetNeteaseSongDetailQuerySchema = z.object({
   id: z.string().min(1, '歌曲 id 不能为空'),
   level: NeteaseSoundQualityLevelSchema.default('exhigh').optional(),
+  cardSecret: z.string().min(1, '卡密不能为空').optional(),
+  getDownloadUrl: z
+    .union([z.boolean(), z.enum(['true', 'false'])])
+    .optional()
+    .default(false)
+    .transform((value) => value === true || value === 'true'),
 });
 /** 获取歌曲详情查询参数类型 */
 export class GetNeteaseSongDetailQueryDto extends createZodDto(
