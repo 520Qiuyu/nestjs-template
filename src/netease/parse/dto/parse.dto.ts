@@ -4,7 +4,7 @@ import { z } from 'zod';
 /** 网易云分享链接解析查询参数 */
 export const ParseNeteaseShareLinkQuerySchema = z.object({
   shareLink: z.string().min(1, '分享链接不能为空'),
-  cardSecret: z.string().optional(),
+  cardSecret: z.string(),
 });
 
 /** 网易云单曲解析查询参数 */

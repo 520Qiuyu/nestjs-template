@@ -1,18 +1,18 @@
 import type { RequestMeta } from '@/common/decorators/request-meta.decorator';
 import { generateError, generateOk } from '@/common/libs/response';
+import { CardSecretService } from '@/qishui/cardSecret/card-secret.service';
 import { Injectable } from '@nestjs/common';
+import { NeteaseAlbumService } from '../album/album.service';
 import { NeteasePlaylistService } from '../playlist/playlist.service';
 import { NeteaseSongService } from '../song/song.service';
 import type {
   NeteaseParseSong,
-  NeteaseParseSongData,
   NeteaseParseSongUrl,
   NeteasePlaylist,
   NeteasePlaylistDetail,
   NeteasePlaylistTrackAll,
   NeteasePrivilege,
   NeteaseSong,
-  NeteaseSongDetailData,
   NeteaseSongUrl,
 } from '../types';
 import type {
@@ -22,11 +22,15 @@ import type {
   ParseNeteaseSongQueryDto,
 } from './dto/parse.dto';
 
+const idDev = process.env.NODE_ENV === 'development';
+
 @Injectable()
 export class NeteaseParseService {
   constructor(
     private readonly playlistService: NeteasePlaylistService,
     private readonly songService: NeteaseSongService,
+    private readonly albumService: NeteaseAlbumService,
+    private readonly cardSecretService: CardSecretService,
   ) {}
 
   /**
@@ -41,7 +45,6 @@ export class NeteaseParseService {
     // id:纯数字
     // 分享链接：https://music.163.com/#/song?id=1456165234
     const { shareLink, cardSecret } = _query;
-    // TODO 检查卡密是否正常
 
     const id = parseNeteaseShareId(shareLink);
     if (!id) {
@@ -52,7 +55,8 @@ export class NeteaseParseService {
     const detailRes = await this.songService.getSongDetail({
       id,
       getDownloadUrl: false,
-    });
+      cardSecret,
+    }, _meta);
 
     if (detailRes.code !== 200 || !detailRes.data?.detail?.song) {
       return generateError(detailRes.message || '未解析到有效歌曲信息', {
@@ -83,7 +87,12 @@ export class NeteaseParseService {
     // id:纯数字
     // 分享链接：https://music.163.com/#/playlist?id=7044354223
     const { shareLink, cardSecret } = _query;
-    // TODO 检查卡密是否正常
+    // 检查卡密是否正常
+    const checkSecretMessage =
+      await this.cardSecretService.validateSecret(cardSecret);
+    if (checkSecretMessage !== true) {
+      return generateError(checkSecretMessage);
+    }
 
     const id = parseNeteaseShareId(shareLink);
     if (!id) {
@@ -92,12 +101,12 @@ export class NeteaseParseService {
 
     // 获取歌单详情、以及歌曲
     const [detailRes, allRes] = await Promise.all([
-      this.playlistService.getPlaylistDetail({ id }),
-      this.playlistService.getPlaylistTrackAll({ id }),
+      this.playlistService.getPlaylistDetail({ id, cardSecret }),
+      this.playlistService.getPlaylistTrackAll({ id, cardSecret }),
     ]);
 
     // 返回结果（仅保留前端解析页实际使用的字段）
-    const isOrigin = true; // 开发调试，返回完整数据
+    const isOrigin = idDev; // 开发调试，返回完整数据
     return generateOk(
       isOrigin
         ? {
@@ -119,7 +128,32 @@ export class NeteaseParseService {
    * ```
    */
   async parseAlbum(_query: ParseNeteaseAlbumQueryDto, _meta: RequestMeta) {
-    return generateOk(null);
+    // 支持的值
+    // id:纯数字
+    // 分享链接：https://music.163.com/#/album?id=31532
+    const { shareLink, cardSecret } = _query;
+    const checkSecretMessage =
+      await this.cardSecretService.validateSecret(cardSecret);
+    if (checkSecretMessage !== true) {
+      return generateError(checkSecretMessage);
+    }
+
+    const id = parseNeteaseShareId(shareLink);
+    if (!id) {
+      return generateError('无效的分享链接，请输入正确的分享链接或id');
+    }
+
+    const detailRes = await this.albumService.getAlbumDetail({
+      id,
+      cardSecret,
+    });
+    if (detailRes.code !== 200 || !detailRes.data?.album?.id) {
+      return generateError(detailRes.message || '未解析到有效专辑信息', {
+        code: detailRes.code !== 200 ? detailRes.code : 500,
+      });
+    }
+
+    return generateOk(detailRes.data);
   }
 
   /**

@@ -239,6 +239,25 @@ export interface NeteaseParseSong {
   noCopyrightRcmd?: unknown | null;
 }
 
+/**
+ * 内存映射 / 解析日志用的精简歌曲信息。
+ * 只保留写日志和展示所需字段，不含歌词、封面、音质等大对象。
+ */
+export interface NeteaseSongLogInfo {
+  /** 歌曲 ID */
+  id: number;
+  /** 歌曲名 */
+  name: string;
+  /** 歌手（仅 id、名字） */
+  ar: Array<{ id: number; name: string }>;
+  /** 专辑（仅 id、名字，不含封面） */
+  al?: { id: number; name: string };
+  /** 时长（毫秒） */
+  dt?: number;
+  /** 收费类型 */
+  fee?: number;
+}
+
 /** 单曲解析接口 data */
 export interface NeteaseParseSongData {
   song: NeteaseParseSong | null;

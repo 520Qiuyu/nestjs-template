@@ -2,7 +2,7 @@ import { generateError, generateForbidden, generateOk } from '@/common/libs/resp
 import { PrismaService } from '@/prisma.service';
 import { UserService } from '@/user/user.service';
 import { Injectable } from '@nestjs/common';
-import type { Prisma, User } from '@prisma/client';
+import type { ParseLog, Prisma, User } from '@prisma/client';
 import type { CreateParseLogInput, ListParseLogQueryDto } from './dto/logs.dto';
 
 @Injectable()
@@ -24,6 +24,7 @@ export class LogsService {
       data: {
         cardSecret: input.cardSecret ?? null,
         type: input.type,
+        platform: input.platform ?? 'qishui',
         targetName: input.targetName ?? '',
         targetId: input.targetId ?? '',
         status: input.status,
@@ -56,13 +57,17 @@ export class LogsService {
       sortOrder = 'desc',
       keyword,
       type,
+      platform,
       status,
+      startTime,
+      endTime,
     } = query;
 
     const allowedSortFields = {
       id: true,
       cardSecret: true,
       type: true,
+      platform: true,
       targetName: true,
       status: true,
       ip: true,
@@ -82,8 +87,10 @@ export class LogsService {
         .filter(Boolean) ?? [];
 
     const typeList = splitCsv(type);
+    const platformList = splitCsv(platform);
     const statusList = splitCsv(status);
     const trimmedKeyword = keyword?.trim();
+    const ctimeFilter = parseCtimeRange(startTime, endTime);
 
     const scopeWhere = await this.buildCardSecretScopeWhere(user);
 
@@ -91,7 +98,9 @@ export class LogsService {
       isDeleted: false,
       ...scopeWhere,
       ...(typeList.length ? { type: { in: typeList } } : {}),
+      ...(platformList.length ? { platform: { in: platformList } } : {}),
       ...(statusList.length ? { status: { in: statusList } } : {}),
+      ...(ctimeFilter ? { ctime: ctimeFilter } : {}),
       ...(trimmedKeyword
         ? {
             OR: [
@@ -234,28 +243,12 @@ export class LogsService {
   /**
    * 格式化列表/详情项（parseParams 转为 JSON 字符串对齐前端）
    */
-  private formatListItem(row: {
-    id: string;
-    cardSecret: string | null;
-    type: string;
-    targetName: string;
-    targetId: string;
-    status: string;
-    ip: string;
-    path: string;
-    method: string;
-    userAccount: string | null;
-    errorMsg: string | null;
-    parseParams: Prisma.JsonValue;
-    durationMs: number;
-    ua: string | null;
-    ctime: Date;
-    utime: Date;
-  }) {
+  private formatListItem(row: ParseLog) {
     return {
       id: row.id,
       cardSecret: row.cardSecret ?? '',
       type: row.type,
+      platform: row.platform,
       targetName: row.targetName,
       targetId: row.targetId,
       status: row.status,
@@ -277,3 +270,38 @@ export class LogsService {
     };
   }
 }
+
+/**
+ * 将 startTime / endTime 转成 Prisma 时间范围；纯日期会补齐当天起止
+ * @example
+ * parseCtimeRange('2026-09-01', '2026-09-08')
+ */
+const parseCtimeRange = (
+  startTime?: string,
+  endTime?: string,
+): Prisma.DateTimeFilter | undefined => {
+  if (!startTime && !endTime) return undefined;
+
+  const parseBound = (value: string, endOfDay: boolean) => {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return undefined;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      if (endOfDay) {
+        date.setHours(23, 59, 59, 999);
+      } else {
+        date.setHours(0, 0, 0, 0);
+      }
+    }
+    return date;
+  };
+
+  const gte = startTime ? parseBound(startTime, false) : undefined;
+  const lte = endTime ? parseBound(endTime, true) : undefined;
+  if (!gte && !lte) return undefined;
+
+  return {
+    ...(gte ? { gte } : {}),
+    ...(lte ? { lte } : {}),
+  };
+};
+

@@ -20,7 +20,7 @@ export const NeteaseSoundQualityLevelSchema = z.enum([
 export const GetNeteaseSongDetailQuerySchema = z.object({
   id: z.string().min(1, '歌曲 id 不能为空'),
   level: NeteaseSoundQualityLevelSchema.default('exhigh').optional(),
-  cardSecret: z.string().min(1, '卡密不能为空').optional(),
+  cardSecret: z.string().min(1, '卡密不能为空'),
   getDownloadUrl: z
     .union([z.boolean(), z.enum(['true', 'false'])])
     .optional()
@@ -45,6 +45,7 @@ export class GetNeteaseSongQualityQueryDto extends createZodDto(
 export const GetNeteaseSongDownloadQuerySchema = z.object({
   id: z.string().min(1, '歌曲 id 不能为空'),
   level: NeteaseSoundQualityLevelSchema.default('exhigh'),
+  cardSecret: z.string().min(1, '卡密不能为空'),
 });
 /** 获取歌曲下载地址查询参数类型 */
 export class GetNeteaseSongDownloadQueryDto extends createZodDto(

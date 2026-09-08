@@ -1,4 +1,5 @@
 import { Public } from '@/auth/decorator/auth.decorator';
+import { RequestMeta } from '@/common/decorators/request-meta.decorator';
 import { Controller, Get, Query } from '@nestjs/common';
 import {
   GetNeteaseSongDetailQueryDto,
@@ -14,8 +15,11 @@ export class NeteaseSongController {
 
   // 获取歌曲详情
   @Get('detail')
-  getSongDetail(@Query() query: GetNeteaseSongDetailQueryDto) {
-    return this.songService.getSongDetail(query);
+  getSongDetail(
+    @Query() query: GetNeteaseSongDetailQueryDto,
+    @RequestMeta() meta: RequestMeta,
+  ) {
+    return this.songService.getSongDetail(query, meta);
   }
 
   // 获取歌曲音质详情
@@ -26,7 +30,10 @@ export class NeteaseSongController {
 
   // 获取歌曲下载地址
   @Get('download')
-  getSongDownload(@Query() query: GetNeteaseSongDownloadQueryDto) {
-    return this.songService.getSongDownload(query);
+  getSongDownload(
+    @Query() query: GetNeteaseSongDownloadQueryDto,
+    @RequestMeta() meta: RequestMeta,
+  ) {
+    return this.songService.getSongDownload(query, meta);
   }
 }

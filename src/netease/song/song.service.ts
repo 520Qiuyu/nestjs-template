@@ -1,4 +1,8 @@
+import type { RequestMeta } from '@/common/decorators/request-meta.decorator';
 import { generateError, generateOk } from '@/common/libs/response';
+import { CardSecretService } from '@/qishui/cardSecret/card-secret.service';
+import type { CreateParseLogInput } from '@/qishui/logs/dto/logs.dto';
+import { LogsService } from '@/qishui/logs/logs.service';
 import type { Response } from '@/types/global';
 import { Injectable } from '@nestjs/common';
 import {
@@ -16,6 +20,7 @@ import type {
   NeteaseSongQualityData,
   NeteaseSongUrl,
 } from '../types';
+import { songIdDetailMap } from '../utils/songIdDetailMap';
 import type {
   GetNeteaseSongDetailQueryDto,
   GetNeteaseSongDownloadQueryDto,
@@ -28,6 +33,10 @@ const tempCookie = [
 
 @Injectable()
 export class NeteaseSongService {
+  constructor(
+    private readonly cardSecretService: CardSecretService,
+    private readonly logsService: LogsService,
+  ) {}
   /**
    * 获取歌曲详情
    * @example
@@ -35,12 +44,29 @@ export class NeteaseSongService {
    * const res = await this.getSongDetail({ id });
    * ```
    */
-  async getSongDetail({
-    id,
-    level,
-    getDownloadUrl = false,
-  }: GetNeteaseSongDetailQueryDto): Promise<Response<NeteaseSongDetailData>> {
+  async getSongDetail(
+    {
+      id,
+      level,
+      getDownloadUrl = false,
+      cardSecret,
+    }: GetNeteaseSongDetailQueryDto,
+    meta: RequestMeta,
+  ): Promise<Response<NeteaseSongDetailData>> {
+    const start = Date.now();
+    let parseStatus: CreateParseLogInput['status'] = 'success';
+    let errorMsg: string | null = null;
+    let targetId = id;
     try {
+      // 检查卡密
+      const checkSecretMessage =
+        await this.cardSecretService.validateSecret(cardSecret);
+      if (checkSecretMessage !== true) {
+        parseStatus = 'fail';
+        errorMsg = checkSecretMessage;
+        return generateError(checkSecretMessage);
+      }
+      // 开始解析
       const quality = (level ?? 'exhigh') as SoundQualityType; // cspell:ignore exhigh
       const cookie = tempCookie[0];
       const [detailRes, downloadRes, lyricRes, qualityRes] = await Promise.all([
@@ -61,10 +87,35 @@ export class NeteaseSongService {
         lrcText: stripLrcText(lrcContent),
       };
       const { data: qualityData } = qualityRes?.body ?? {};
-      console.log('qualityRes', qualityRes);
+      const song = songs[0] as NeteaseSong | undefined;
+      // 缓存歌曲信息
+      if (song) {
+        songIdDetailMap.set(song);
+      }
+      // 获取下载链接,记录次数
+      if (getDownloadUrl && downloadData?.url) {
+        this.cardSecretService.increaseParseCount(cardSecret).then(() => {
+          this.logsService.create({
+            cardSecret,
+            type: 'song',
+            platform: 'netease',
+            targetName: songIdDetailMap.getLogTarget(id)?.targetName,
+            targetId,
+            status: parseStatus,
+            errorMsg,
+            parseParams: { id, level, cardSecret },
+            ip: meta.ip,
+            path: meta.path,
+            method: meta.method,
+            ua: meta.userAgent,
+            durationMs: Date.now() - start,
+          });
+        });
+      }
+      // 返回结果
       return generateOk({
         detail: {
-          song: songs[0] as NeteaseSong | undefined,
+          song,
           privileges: privileges[0] as NeteasePrivilege | undefined,
         },
         download: (downloadData as NeteaseSongUrl | null | undefined) ?? null,
@@ -72,7 +123,10 @@ export class NeteaseSongService {
         quality: qualityData as NeteaseSongQualityData | null,
       });
     } catch (error) {
+      parseStatus = 'fail';
+      errorMsg = error instanceof Error ? error.message : '获取歌曲详情失败';
       return generateError<NeteaseSongDetailData>('获取歌曲详情失败');
+    } finally {
     }
   }
 
@@ -116,32 +170,71 @@ export class NeteaseSongService {
    * const res = await this.getSongDownload({ id, level });
    * ```
    */
-  async getSongDownload({
-    id,
-    level,
-  }: GetNeteaseSongDownloadQueryDto): Promise<Response<NeteaseSongUrl>> {
+  async getSongDownload(
+    { id, level, cardSecret: cardSecretParam }: GetNeteaseSongDownloadQueryDto,
+    meta: RequestMeta,
+  ): Promise<Response<NeteaseSongUrl>> {
+    const start = Date.now();
+    let parseStatus: CreateParseLogInput['status'] = 'success';
+    let errorMsg: string | null = null;
+    let targetName = songIdDetailMap.getLogTarget(id)?.targetName;
+    let targetId = id;
     try {
+      // 校验卡密
+      const cardSecret = await this.cardSecretService.validateSecret(
+        cardSecretParam,
+        {
+          checkStatus: true,
+          checkExpire: true,
+          checkParseLimit: true,
+        },
+      );
+      if (cardSecret !== true) {
+        parseStatus = 'fail';
+        errorMsg = cardSecret;
+        return generateError<NeteaseSongUrl>(cardSecret);
+      }
+
+      // 开始解析
       const cookie = tempCookie[0];
       const quality = (level ?? 'exhigh') as SoundQualityType;
       const res = await song_download_url_v1({ id, level: quality, cookie });
       const { status, body } = res || {};
       const data = body?.data as NeteaseSongUrl | undefined;
       if (status === 200 && body?.code === 200 && data) {
+        // 解析成功，记录使用次数
+        await this.cardSecretService.increaseParseCount(cardSecretParam);
         return generateOk(data);
       }
-      return generateError<NeteaseSongUrl>(
+      parseStatus = 'fail';
+      errorMsg =
         (body?.message as string) ||
-          (body?.msg as string) ||
-          '获取歌曲下载地址失败',
-        {
-          code: Number(body?.code) || 500,
-          data: null,
-        },
-      );
+        (body?.msg as string) ||
+        '获取歌曲下载地址失败';
+      return generateError<NeteaseSongUrl>(errorMsg);
     } catch (error) {
+      parseStatus = 'fail';
+      errorMsg =
+        error instanceof Error ? error.message : '获取歌曲下载地址失败';
       return generateError<NeteaseSongUrl>(
         error instanceof Error ? error.message : '获取歌曲下载地址失败',
       );
+    } finally {
+      this.logsService.create({
+        cardSecret: cardSecretParam,
+        type: 'song',
+        platform: 'netease',
+        targetName,
+        targetId,
+        status: parseStatus,
+        errorMsg,
+        parseParams: { id, level, cardSecret: cardSecretParam },
+        ip: meta.ip,
+        path: meta.path,
+        method: meta.method,
+        ua: meta.userAgent,
+        durationMs: Date.now() - start,
+      });
     }
   }
 }

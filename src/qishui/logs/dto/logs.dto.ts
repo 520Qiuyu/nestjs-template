@@ -5,6 +5,9 @@ import { z } from 'zod';
 /** 解析日志类型 */
 export const ParseLogTypeSchema = z.enum(['song', 'playlist', 'video']);
 
+/** 解析日志平台 */
+export const ParseLogPlatformSchema = z.enum(['qishui', 'netease']);
+
 /** 解析日志状态 */
 export const ParseLogStatusSchema = z.enum(['success', 'fail']);
 
@@ -13,8 +16,14 @@ export const ListParseLogQuerySchema = PaginationQuerySchema.extend({
   keyword: z.string().optional(),
   /** 类型，支持多选：song,playlist */
   type: z.string().optional(),
+  /** 平台，支持多选：qishui,netease */
+  platform: z.string().optional(),
   /** 状态，支持多选：success,fail */
   status: z.string().optional(),
+  /** 解析时间起（含），支持 YYYY-MM-DD 或 ISO */
+  startTime: z.string().optional(),
+  /** 解析时间止（含），支持 YYYY-MM-DD 或 ISO */
+  endTime: z.string().optional(),
 });
 /** 解析日志列表查询参数类型 */
 export class ListParseLogQueryDto extends createZodDto(ListParseLogQuerySchema) {}
@@ -23,6 +32,7 @@ export class ListParseLogQueryDto extends createZodDto(ListParseLogQuerySchema) 
 export const CreateParseLogSchema = z.object({
   cardSecret: z.string().nullable().optional(),
   type: ParseLogTypeSchema,
+  platform: ParseLogPlatformSchema.optional(),
   targetName: z.string().optional().default(''),
   targetId: z.string().optional().default(''),
   status: ParseLogStatusSchema,

@@ -1,4 +1,10 @@
-export type { NeteaseAlbum } from './album';
+export type {
+  NeteaseAlbum,
+  NeteaseAlbumArtist,
+  NeteaseAlbumDetail,
+  NeteaseAlbumInfo,
+  NeteaseAlbumSongPrivilege,
+} from './album';
 export type { NeteaseArtist } from './artist';
 export type {
   NeteasePlaylist,
@@ -21,6 +27,7 @@ export type {
   NeteaseSongDetail,
   NeteaseSongDetailData,
   NeteaseSongFreeTrialInfo,
+  NeteaseSongLogInfo,
   NeteaseSongLyric,
   NeteaseSongQuality,
   NeteaseSongQualityData,

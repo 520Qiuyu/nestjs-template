@@ -263,6 +263,8 @@ model ParseLog {
   cardSecret  String?
   // 解析类型 song | playlist
   type        String
+  // 解析平台 netease | qishui
+  platform    String   @default("qishui")
   // 目标名称（歌名 / 歌单名）
   targetName  String   @default("")
   // 目标 ID
