@@ -214,8 +214,6 @@ model CardSecret {
   dailyParsedCount Int       @default(0)
   // 当日计数对应的日期（用于跨日清零）
   dailyParseDate   DateTime?
-  // 认证信息ID
-  authInfoId       String?
   // 创建者
   creatorId        String?
   // 创建时间
@@ -230,20 +228,19 @@ model CardSecret {
   remark           String?
 
   @@index([creatorId])
-  @@index([authInfoId])
 }
 
 // 认证信息表
 model AuthInfo {
   // 唯一主键
   id          String   @id @default(uuid())
-  // 用户信息
-  userInfo    Json
+  // 平台 qishui: 汽水音乐, netease: 网易云音乐
+  platform    String   @default("netease")
   // 认证信息
   authInfo    Json
   // 是否可用
   isAvailable Boolean  @default(true)
-  // 状态
+  // 状态 normal: 正常, disabled: 禁用
   status      String   @default("normal")
   // 创建时间
   ctime       DateTime @default(now())

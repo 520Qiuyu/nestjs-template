@@ -1,4 +1,5 @@
 import { syncAuthPermissionResources } from '../../auth/sync-permission-resources';
+import { syncAuthManagementPermissionResources } from '../../authManagement/sync-permission-resources';
 import { syncIpBlacklistPermissionResources } from '../../ipBlacklist/sync-permission-resources';
 import { syncPermissionModuleResources } from '../../permission/sync-permission-resources';
 import { syncQishuiPermissionResources } from '../../qishui/sync-permission-qishui';
@@ -11,6 +12,7 @@ async function main() {
   await syncAuthPermissionResources(dryRun);
   await syncPermissionModuleResources(dryRun);
   await syncQishuiPermissionResources(dryRun);
+  await syncAuthManagementPermissionResources(dryRun);
   await syncIpBlacklistPermissionResources(dryRun);
 }
 

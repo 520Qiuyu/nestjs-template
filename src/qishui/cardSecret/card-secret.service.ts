@@ -13,13 +13,6 @@ import type {
   UpdateCardSecretStatusDto,
 } from './dto/card-secret.dto';
 
-type AuthInfoPayload = {
-  deviceId: string;
-  cookie: string;
-  xHelios: string;
-  xMedusa: string;
-};
-
 type CreatorInfo = {
   account: string;
   nickname: string | null;
@@ -240,18 +233,15 @@ export class CardSecretService {
   }
 
   /**
-   * 格式化列表项（补充未解析数量、认证信息与创建者）
+   * 格式化列表项（补充未解析数量与创建者）
    */
   private formatListItem(
     item: CardSecret,
-    authInfoMap: Map<string, AuthInfoPayload>,
     creatorMap?: Map<string, CreatorInfo>,
   ) {
     const unparsedCount = Math.max(0, item.parseLimit - item.parsedCount);
     const dailyParsedCount = this.getEffectiveDailyParsedCount(item);
-    const authInfo = item.authInfoId
-      ? authInfoMap.get(item.authInfoId)
-      : undefined;
+
     const createUser = item.creatorId
       ? (creatorMap?.get(item.creatorId) ?? null)
       : null;
@@ -260,39 +250,8 @@ export class CardSecretService {
       ...item,
       unparsedCount,
       dailyParsedCount,
-      authInfo: authInfo ?? null,
       createUser,
     };
-  }
-
-  /**
-   * 创建或更新认证信息，返回 authInfoId
-   */
-  private async upsertAuthInfo(
-    authInfo: AuthInfoPayload,
-    authInfoId?: string | null,
-  ) {
-    if (authInfoId) {
-      await this.prisma.authInfo.update({
-        where: { id: authInfoId },
-        data: {
-          authInfo,
-          isAvailable: true,
-          status: 'normal',
-        },
-      });
-      return authInfoId;
-    }
-
-    const created = await this.prisma.authInfo.create({
-      data: {
-        userInfo: {},
-        authInfo,
-        isAvailable: true,
-        status: 'normal',
-      },
-    });
-    return created.id;
   }
 
   /**
@@ -444,13 +403,6 @@ export class CardSecretService {
         }),
       ]);
 
-    const authInfoIds = [
-      ...new Set(
-        rows
-          .map((row) => row.authInfoId)
-          .filter((id): id is string => Boolean(id)),
-      ),
-    ];
     const creatorIds = [
       ...new Set(
         rows
@@ -458,37 +410,9 @@ export class CardSecretService {
           .filter((id): id is string => Boolean(id)),
       ),
     ];
+    const creatorMap = await this.buildCreatorMap(creatorIds);
 
-    const [authInfos, creatorMap] = await Promise.all([
-      authInfoIds.length
-        ? this.prisma.authInfo.findMany({
-            where: { id: { in: authInfoIds }, isDeleted: false },
-          })
-        : Promise.resolve([]),
-      this.buildCreatorMap(creatorIds),
-    ]);
-
-    const authInfoMap = new Map<string, AuthInfoPayload>();
-    for (const info of authInfos) {
-      const payload = info.authInfo as Partial<AuthInfoPayload> | null;
-      if (
-        payload?.deviceId &&
-        payload?.cookie &&
-        payload?.xHelios &&
-        payload?.xMedusa
-      ) {
-        authInfoMap.set(info.id, {
-          deviceId: payload.deviceId,
-          cookie: payload.cookie,
-          xHelios: payload.xHelios,
-          xMedusa: payload.xMedusa,
-        });
-      }
-    }
-
-    const list = rows.map((row) =>
-      this.formatListItem(row, authInfoMap, creatorMap),
-    );
+    const list = rows.map((row) => this.formatListItem(row, creatorMap));
     const result: PaginatedResultVo<(typeof list)[number]> & {
       unusedCount: number;
       usedCount: number;
@@ -517,32 +441,11 @@ export class CardSecretService {
       return generateError('卡密不存在');
     }
 
-    const authInfoMap = new Map<string, AuthInfoPayload>();
-    if (row.authInfoId) {
-      const info = await this.prisma.authInfo.findFirst({
-        where: { id: row.authInfoId, isDeleted: false },
-      });
-      const payload = info?.authInfo as Partial<AuthInfoPayload> | null;
-      if (
-        payload?.deviceId &&
-        payload?.cookie &&
-        payload?.xHelios &&
-        payload?.xMedusa
-      ) {
-        authInfoMap.set(row.authInfoId, {
-          deviceId: payload.deviceId,
-          cookie: payload.cookie,
-          xHelios: payload.xHelios,
-          xMedusa: payload.xMedusa,
-        });
-      }
-    }
-
     const creatorMap = row.creatorId
       ? await this.buildCreatorMap([row.creatorId])
       : new Map<string, CreatorInfo>();
 
-    return generateOk(this.formatListItem(row, authInfoMap, creatorMap));
+    return generateOk(this.formatListItem(row, creatorMap));
   }
 
   /**
@@ -593,11 +496,6 @@ export class CardSecretService {
   /** 创建卡密 */
   async create(body: CreateCardSecretDto, user: User) {
     const createCount = body.createCount ?? 1;
-    let authInfoId: string | null = null;
-
-    if (body.authInfo) {
-      authInfoId = await this.upsertAuthInfo(body.authInfo);
-    }
 
     const secrets = Array.from({ length: createCount }, () =>
       this.generateSecret(),
@@ -621,7 +519,6 @@ export class CardSecretService {
       dailyParseLimit,
       dailyParsedCount: 0,
       dailyParseDate: null as Date | null,
-      authInfoId,
       status: body.status ?? 'normal',
       remark: body.remark ?? null,
       creatorId: user.id,
@@ -634,17 +531,10 @@ export class CardSecretService {
       orderBy: { ctime: 'desc' },
     });
 
-    const authInfoMap = new Map<string, AuthInfoPayload>();
-    if (authInfoId && body.authInfo) {
-      authInfoMap.set(authInfoId, body.authInfo);
-    }
-
     const creatorMap = await this.buildCreatorMap([user.id]);
 
     return generateOk({
-      list: created.map((row) =>
-        this.formatListItem(row, authInfoMap, creatorMap),
-      ),
+      list: created.map((row) => this.formatListItem(row, creatorMap)),
       count: created.length,
     });
   }
@@ -703,16 +593,6 @@ export class CardSecretService {
       }
     }
 
-    let authInfoId = existing.authInfoId;
-    if (body.authInfo === null) {
-      authInfoId = null;
-    } else if (body.authInfo) {
-      authInfoId = await this.upsertAuthInfo(
-        body.authInfo,
-        existing.authInfoId,
-      );
-    }
-
     const nextDailyParseLimit =
       nextType === 'time'
         ? body.dailyParseLimit !== undefined
@@ -758,7 +638,6 @@ export class CardSecretService {
               : existing.parseLimit
             : 0,
         dailyParseLimit: nextDailyParseLimit,
-        authInfoId,
         ...(body.remark !== undefined ? { remark: body.remark } : {}),
         ...(body.status ? { status: body.status } : {}),
       },

@@ -8,8 +8,8 @@ export const SYNC_BASE_URL =
 /** 全局 Authorization（可选，与 Cookie 二选一或同时使用） */
 export const SYNC_AUTHORIZATION =
   process.env.SYNC_PERMISSION_AUTHORIZATION ??
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50IjoiYWRtaW4iLCJpZCI6ImE0MDE5NTkyLTQ0OWItNDU5Ni05NjM5LWM3OWEyOWVmNzA2NyIsInN0YXR1cyI6Im5vcm1hbCIsImlhdCI6MTc4NDY4NTIzNywiZXhwIjoxNzg3Mjc3MjM3fQ.t-RlXDJse9BFg5ukeptnJziiZI5od3Z4K-3fD8EjyyQ';
-
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50IjoiYWRtaW4iLCJpZCI6ImE0MDE5NTkyLTQ0OWItNDU5Ni05NjM5LWM3OWEyOWVmNzA2NyIsInN0YXR1cyI6Im5vcm1hbCIsImlhdCI6MTc4ODQ4OTIxOCwiZXhwIjoxNzkxMDgxMjE4fQ.bJtMQfgmIIwJ2_Iqo9ymSYjcvVi2XLav59V_FGOOktQ'
+  
 export interface SyncPermissionResourcesOptions {
   parentId: string;
   controllerPath: string;

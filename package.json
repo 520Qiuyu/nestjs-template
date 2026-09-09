@@ -24,7 +24,8 @@
     "sync:permissions:dry-run": "ts-node src/common/scripts/run-all-sync-permission-resources.ts --dry-run",
     "sync:permissions:user": "ts-node src/user/sync-permission-resources.ts",
     "sync:permissions:auth": "ts-node src/auth/sync-permission-resources.ts",
-    "sync:permissions:permission": "ts-node src/permission/sync-permission-resources.ts"
+    "sync:permissions:permission": "ts-node src/permission/sync-permission-resources.ts",
+    "sync:permissions:auth-management": "ts-node src/authManagement/sync-permission-resources.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

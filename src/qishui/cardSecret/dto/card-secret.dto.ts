@@ -8,14 +8,6 @@ export const CardSecretTypeSchema = z.enum(['time', 'count']);
 /** 卡密状态 */
 export const CardSecretStatusSchema = z.enum(['normal', 'disabled']);
 
-/** 认证信息（写入 AuthInfo.authInfo） */
-export const CardSecretAuthInfoSchema = z.object({
-  deviceId: z.string().min(1),
-  cookie: z.string().min(1),
-  xHelios: z.string().min(1),
-  xMedusa: z.string().min(1),
-});
-
 /** 卡密列表查询参数 */
 export const ListCardSecretQuerySchema = PaginationQuerySchema.extend({
   keyword: z.string().optional(),
@@ -46,7 +38,6 @@ export const CreateCardSecretSchema = z
     dailyParseLimit: z
       .union([z.coerce.number().int().min(1).max(999999), z.null()])
       .optional(),
-    authInfo: CardSecretAuthInfoSchema.optional(),
     remark: z.string().optional(),
     status: CardSecretStatusSchema.default('normal'),
   })
@@ -83,7 +74,6 @@ export const UpdateCardSecretSchema = z
     dailyParseLimit: z
       .union([z.coerce.number().int().min(1).max(999999), z.null()])
       .optional(),
-    authInfo: CardSecretAuthInfoSchema.nullable().optional(),
     remark: z.string().nullable().optional(),
     status: CardSecretStatusSchema.optional(),
   })

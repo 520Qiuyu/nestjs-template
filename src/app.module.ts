@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core';
 import { ZodSerializerInterceptor, ZodValidationPipe } from 'nestjs-zod';
+import { AuthManagementModule } from './authManagement/auth-management.module';
 import { AuthGuard } from './auth/auth.guard';
 import { AuthModule } from './auth/auth.module';
 import { RateLimitGuard } from './common/guards/rate-limit.guard';
@@ -21,6 +22,7 @@ import { UserModule } from './user/user.module';
       load: [loadConfigs],
     }),
     AuthModule,
+    AuthManagementModule,
     PermissionModule,
     UserModule,
     QishuiModule,

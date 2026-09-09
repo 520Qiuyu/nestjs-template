@@ -1,3 +1,4 @@
+import { AuthManagementService } from '@/authManagement/auth-management.service';
 import type { RequestMeta } from '@/common/decorators/request-meta.decorator';
 import { generateError, generateOk } from '@/common/libs/response';
 import { CardSecretService } from '@/qishui/cardSecret/card-secret.service';
@@ -36,6 +37,7 @@ export class NeteaseSongService {
   constructor(
     private readonly cardSecretService: CardSecretService,
     private readonly logsService: LogsService,
+    private readonly authManagementService: AuthManagementService,
   ) {}
   /**
    * 获取歌曲详情
@@ -68,7 +70,17 @@ export class NeteaseSongService {
       }
       // 开始解析
       const quality = (level ?? 'exhigh') as SoundQualityType; // cspell:ignore exhigh
-      const cookie = tempCookie[0];
+      let cookie: string | undefined;
+      if (getDownloadUrl) {
+        const authInfo: any =
+          await this.authManagementService.getRandomValidAuthInfo('netease');
+        if (!authInfo) {
+          parseStatus = 'fail';
+          errorMsg = '认证信息无效';
+          return generateError('认证信息无效');
+        }
+        cookie = authInfo.authInfo.cookie;
+      }
       const [detailRes, downloadRes, lyricRes, qualityRes] = await Promise.all([
         song_detail({ ids: id }),
         getDownloadUrl
