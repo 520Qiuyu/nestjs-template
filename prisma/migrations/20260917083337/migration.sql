@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE `AuthInfo` ADD COLUMN `useCount` INTEGER NOT NULL DEFAULT 0;

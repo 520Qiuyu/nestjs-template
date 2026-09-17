@@ -242,6 +242,8 @@ model AuthInfo {
   isAvailable Boolean  @default(true)
   // 状态 normal: 正常, disabled: 禁用
   status      String   @default("normal")
+  // 使用次数
+  useCount    Int      @default(0)
   // 创建时间
   ctime       DateTime @default(now())
   // 更新时间

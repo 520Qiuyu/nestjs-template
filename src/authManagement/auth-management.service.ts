@@ -1,11 +1,15 @@
+import type { BatchImportResult } from '@/common/dtos/batch-import.dto';
 import { generateError, generateOk } from '@/common/libs/response';
 import { PrismaService } from '@/prisma.service';
+import type { Response } from '@/types/global';
 import { Injectable } from '@nestjs/common';
 import type { AuthInfo, Prisma } from '@prisma/client';
 import type {
   AuthInfoPayload,
   AuthPlatformSchema,
+  BatchImportAuthInfosDto,
   CreateAuthInfoDto,
+  ImportAuthInfoItem,
   ListAuthInfoQueryDto,
   UpdateAuthInfoDto,
   UpdateAuthInfoStatusDto,
@@ -71,6 +75,7 @@ export class AuthManagementService {
       xMedusa: this.readString(payload, 'xMedusa'),
       isAvailable: row.isAvailable,
       status: row.status,
+      useCount: row.useCount,
       remark: row.remark,
       complete: this.isComplete(payload),
       ctime: row.ctime,
@@ -117,6 +122,7 @@ export class AuthManagementService {
       platform: true,
       status: true,
       isAvailable: true,
+      useCount: true,
       ctime: true,
       utime: true,
     } as const;
@@ -307,7 +313,12 @@ export class AuthManagementService {
     }
     const row = await this.prisma.authInfo.update({
       where: { id },
-      data: { status: body.status },
+      data: {
+        ...(body.status ? { status: body.status } : {}),
+        ...(body.isAvailable !== undefined
+          ? { isAvailable: body.isAvailable }
+          : {}),
+      },
     });
     return generateOk(this.formatItem(row));
   }
@@ -335,7 +346,85 @@ export class AuthManagementService {
   }
 
   /**
-   * 根据平台随机获取一个认证信息，并校验其有效性
+   * 导入单条认证信息：有 id 则更新或按 id 创建，无 id 则新建
+   * @example
+   * ```ts
+   * await this.upsertImportItem(item);
+   * ```
+   */
+  private async upsertImportItem(item: ImportAuthInfoItem) {
+    const payload = this.normalizePayload(item.authInfo);
+    if (!this.isComplete(payload)) {
+      return generateError('认证 JSON 不能为空');
+    }
+
+    const data = {
+      platform: item.platform,
+      authInfo: payload,
+      isAvailable: item.isAvailable ?? this.isComplete(payload),
+      status: item.status ?? 'normal',
+      remark: item.remark?.trim() || null,
+      isDeleted: false,
+    };
+
+    if (!item.id) {
+      const row = await this.prisma.authInfo.create({ data });
+      return generateOk(this.formatItem(row));
+    }
+
+    const existing = await this.prisma.authInfo.findUnique({
+      where: { id: item.id },
+    });
+    if (existing) {
+      const row = await this.prisma.authInfo.update({
+        where: { id: item.id },
+        data,
+      });
+      return generateOk(this.formatItem(row));
+    }
+
+    const row = await this.prisma.authInfo.create({
+      data: { id: item.id, ...data },
+    });
+    return generateOk(this.formatItem(row));
+  }
+
+  /**
+   * 批量导入认证信息
+   * @example
+   * ```ts
+   * await this.importAuthInfos(body);
+   * ```
+   */
+  async importAuthInfos(
+    body: BatchImportAuthInfosDto,
+  ): Promise<Response<BatchImportResult>> {
+    const failedItems: BatchImportResult['failedItems'] = [];
+    let success = 0;
+
+    for (let index = 0; index < body.list.length; index++) {
+      const item = body.list[index];
+      const result = await this.upsertImportItem(item);
+      if (result.code === 200) {
+        success += 1;
+      } else {
+        failedItems.push({
+          index,
+          message: result.message,
+          data: item,
+        });
+      }
+    }
+
+    return generateOk({
+      success,
+      failed: failedItems.length,
+      failedItems,
+    });
+  }
+
+  /**
+   * 根据平台随机获取一个认证信息，使用次数最少的，且有效的
    * @example
    * ```ts
    * await this.getRandomValidAuthInfo(platform);
@@ -343,8 +432,31 @@ export class AuthManagementService {
    */
   async getRandomValidAuthInfo(platform: keyof typeof AuthPlatformSchema.enum) {
     const row = await this.prisma.authInfo.findFirst({
-      where: { platform, isDeleted: false, isAvailable: true },
+      where: {
+        platform,
+        isDeleted: false,
+        isAvailable: true,
+        status: 'normal',
+      },
+      orderBy: { useCount: 'asc' },
     });
-    return row;
+    if (!row) {
+      return generateError('没有可用的认证信息');
+    }
+    return generateOk(this.formatItem(row));
+  }
+
+  /**
+   * 增加使用次数
+   * @example
+   * ```ts
+   * await this.increaseUseCount(id);
+   * ```
+   */
+  async increaseUseCount(id: string) {
+    await this.prisma.authInfo.update({
+      where: { id },
+      data: { useCount: { increment: 1 } },
+    });
   }
 }

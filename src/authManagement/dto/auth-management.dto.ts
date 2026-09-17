@@ -51,9 +51,33 @@ export class UpdateAuthInfoDto extends createZodDto(UpdateAuthInfoSchema) {}
 
 /** 更新认证信息状态请求体 */
 export const UpdateAuthInfoStatusSchema = z.object({
-  status: AuthInfoStatusSchema,
+  /** 是否禁用，normal: 正常，disabled: 禁用 */
+  status: AuthInfoStatusSchema.optional(),
+  /** 是否可用 */
+  isAvailable: z.boolean().optional(),
 });
 /** 更新认证信息状态请求体类型 */
 export class UpdateAuthInfoStatusDto extends createZodDto(
   UpdateAuthInfoStatusSchema,
+) {}
+
+/** 批量导入认证信息项 */
+export const ImportAuthInfoItemSchema = z.object({
+  id: z.string().nullish(),
+  platform: AuthPlatformSchema.default('qishui'),
+  authInfo: AuthInfoPayloadSchema,
+  isAvailable: z.boolean().optional(),
+  status: AuthInfoStatusSchema.optional(),
+  remark: z.string().trim().max(300).nullish(),
+});
+/** 批量导入认证信息项类型 */
+export type ImportAuthInfoItem = z.infer<typeof ImportAuthInfoItemSchema>;
+
+/** 批量导入认证信息请求体 */
+export const BatchImportAuthInfosSchema = z.object({
+  list: z.array(ImportAuthInfoItemSchema).min(1).max(1000),
+});
+/** 批量导入认证信息请求体类型 */
+export class BatchImportAuthInfosDto extends createZodDto(
+  BatchImportAuthInfosSchema,
 ) {}

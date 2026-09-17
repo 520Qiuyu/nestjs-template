@@ -1,3 +1,4 @@
+import { BatchImportResultDto } from '@/common/dtos/batch-import.dto';
 import {
   Body,
   Controller,
@@ -8,8 +9,10 @@ import {
   Put,
   Query,
 } from '@nestjs/common';
+import { ZodSerializerDto } from 'nestjs-zod';
 import { AuthManagementService } from './auth-management.service';
 import {
+  BatchImportAuthInfosDto,
   CreateAuthInfoDto,
   ListAuthInfoQueryDto,
   UpdateAuthInfoDto,
@@ -36,6 +39,13 @@ export class AuthManagementController {
   @Post()
   create(@Body() body: CreateAuthInfoDto) {
     return this.authManagementService.create(body);
+  }
+
+  // 批量导入认证信息
+  @Post('import/batch')
+  @ZodSerializerDto(BatchImportResultDto)
+  importAuthInfos(@Body() body: BatchImportAuthInfosDto) {
+    return this.authManagementService.importAuthInfos(body);
   }
 
   // 更新认证信息状态

@@ -14,7 +14,7 @@ export function generateOk<T>(
 }
 
 /** 生成失败响应数据 */
-export function generateError<T>(
+export function generateError<T = null>(
   message: string,
   options?: Partial<Omit<Response<T>, 'message'>>,
 ): Response<T> {
@@ -27,7 +27,7 @@ export function generateError<T>(
 }
 
 /** 生成未授权响应数据 */
-export function generateUnauthorized<T>(
+export function generateUnauthorized<T = null>(
   message: string,
   options?: Partial<Omit<Response<T>, 'message'>>,
 ): Response<T> {
@@ -40,7 +40,7 @@ export function generateUnauthorized<T>(
 }
 
 /** 生成无权限响应数据 */
-export function generateForbidden<T>(
+export function generateForbidden<T = null>(
   message: string,
   options?: Partial<Omit<Response<T>, 'message'>>,
 ): Response<T> {
@@ -53,7 +53,7 @@ export function generateForbidden<T>(
 }
 
 /** 生成操作频繁响应数据 */
-export function generateTooFrequent<T>(
+export function generateTooFrequent<T = null>(
   message: string,
   options?: Partial<Omit<Response<T>, 'message'>>,
 ): Response<T> {
