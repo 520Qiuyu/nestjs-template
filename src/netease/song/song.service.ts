@@ -68,11 +68,13 @@ export class NeteaseSongService {
       const quality = (level ?? 'exhigh') as SoundQualityType; // cspell:ignore exhigh
       let cookie: string | undefined;
       let authId: string | undefined;
+      let realIP: string | undefined;
       if (getDownloadUrl) {
         const authInfoRes =
           await this.authManagementService.getRandomValidAuthInfo('netease');
         const authData = authInfoRes.data;
         const authCookie = authData?.authInfo.cookies;
+        const ip = authData?.authInfo.ip;
         if (!authCookie) {
           parseStatus = 'fail';
           errorMsg = '认证信息无效';
@@ -80,11 +82,12 @@ export class NeteaseSongService {
         }
         cookie = authCookie as string;
         authId = authData?.id;
+        ip && (realIP = ip as string);
       }
       const [detailRes, downloadRes, lyricRes, qualityRes] = await Promise.all([
         song_detail({ ids: id }),
         getDownloadUrl
-          ? song_download_url_v1({ id, level: quality, cookie })
+          ? song_download_url_v1({ id, level: quality, cookie, realIP })
           : null,
         lyric({ id }),
         song_music_detail({ id }),
@@ -195,6 +198,7 @@ export class NeteaseSongService {
     let targetName = songIdDetailMap.getLogTarget(id)?.targetName;
     let targetId = id;
     let authId: string | undefined;
+    let realIP: string | undefined;
     try {
       // 校验卡密
       const cardSecret = await this.cardSecretService.validateSecret(
@@ -218,6 +222,7 @@ export class NeteaseSongService {
           await this.authManagementService.getRandomValidAuthInfo('netease');
         const authData = authInfoRes.data;
         const authCookie = authData?.authInfo.cookies;
+        const ip = authData?.authInfo.ip;
         if (!authCookie) {
           parseStatus = 'fail';
           errorMsg = '认证信息无效';
@@ -225,11 +230,17 @@ export class NeteaseSongService {
         }
         cookie = authCookie as string;
         authId = authData?.id;
+        ip && (realIP = ip as string);
       } catch (error) {
         console.log('error', error);
       }
       const quality = (level ?? 'exhigh') as SoundQualityType;
-      const res = await song_download_url_v1({ id, level: quality, cookie });
+      const res = await song_download_url_v1({
+        id,
+        level: quality,
+        cookie,
+        realIP,
+      });
       const { status, body } = res || {};
       const data = body?.data as NeteaseSongUrl | undefined;
       if (status === 200 && body?.code === 200 && data?.url) {
