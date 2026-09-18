@@ -94,3 +94,18 @@ export type {
   QishuiVideoModel,
   QishuiVideoVolume,
 } from './track';
+export type {
+  GetQishuiUserInfoResponse,
+  QishuiAiCreatorInfo,
+  QishuiAllCommentsLikedDetail,
+  QishuiCommentsLikedPopup,
+  QishuiFollowerCountStrExp,
+  QishuiMeTabSidebar,
+  QishuiMeTabSidebarItem,
+  QishuiMeTabSidebarSection,
+  QishuiMyInfo,
+  QishuiMyStats,
+  QishuiStatusInfo,
+  QishuiUserLocation,
+  QishuiVipStage,
+} from './user';

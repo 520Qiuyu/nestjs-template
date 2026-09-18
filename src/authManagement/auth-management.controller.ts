@@ -17,6 +17,8 @@ import {
   ListAuthInfoQueryDto,
   UpdateAuthInfoDto,
   UpdateAuthInfoStatusDto,
+  ValidateAuthInfoDto,
+  ValidateByCookieAndPlatformDto,
 } from './dto/auth-management.dto';
 
 @Controller('auth-management')
@@ -46,6 +48,18 @@ export class AuthManagementController {
   @ZodSerializerDto(BatchImportResultDto)
   importAuthInfos(@Body() body: BatchImportAuthInfosDto) {
     return this.authManagementService.importAuthInfos(body);
+  }
+
+  // 验证认证信息是否可用
+  @Post('validate')
+  validate(@Body() body: ValidateAuthInfoDto) {
+    return this.authManagementService.validate(body);
+  }
+
+  // 通过cookie和平台验证是否可用
+  @Post('validate/by-cookie-and-platform')
+  validateByCookieAndPlatform(@Body() body: ValidateByCookieAndPlatformDto) {
+    return this.authManagementService.validateByCookieAndPlatform(body);
   }
 
   // 更新认证信息状态

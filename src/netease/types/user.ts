@@ -63,3 +63,61 @@ export interface NeteaseUser {
   /** 头像图片 ID 字符串（兼容字段） */
   avatarImgId_str?: string;
 }
+
+/** 网易云单项 VIP 套餐信息 */
+export interface NeteaseVipPackage {
+  /** VIP 类型码 */
+  vipCode: number;
+  /** 过期时间戳（毫秒，0 表示未开通） */
+  expireTime: number;
+  /** 静态图标 */
+  iconUrl: string | null;
+  /** 动态图标 */
+  dynamicIconUrl: string | null;
+  /** VIP 等级 */
+  vipLevel: number;
+  /** 是否签约抵扣 */
+  isSignDeduct: boolean;
+  /** 是否 IAP 签约 */
+  isSignIap: boolean;
+  /** 是否 IAP 签约抵扣 */
+  isSignIapDeduct: boolean;
+  /** 是否签约中 */
+  isSign: boolean;
+}
+
+/** 网易云用户 VIP 信息 */
+export interface NeteaseVipInfo {
+  /** 红心 VIP 等级图标 */
+  redVipLevelIcon: string;
+  /** 红心 VIP 等级 */
+  redVipLevel: number;
+  /** 连续包年次数 */
+  redVipAnnualCount: number;
+  /** 音乐包 */
+  musicPackage: NeteaseVipPackage;
+  /** 黑胶 VIP */
+  associator: NeteaseVipPackage;
+  /** 红心 VIP 动态图标 */
+  redVipDynamicIconUrl: string | null;
+  /** 家庭 VIP */
+  familyVip: NeteaseVipPackage;
+  /** 红心 VIP 动态图标 2 */
+  redVipDynamicIconUrl2: string | null;
+  /** 黑胶 SVIP（redplus） */
+  redplus: NeteaseVipPackage;
+}
+
+/** 用户 SVIP 状态 */
+export interface NeteaseSvipInfo {
+  /** 是否在期 SVIP */
+  isSvip: boolean;
+  /** 过期时间戳（毫秒） */
+  expireTime: number;
+  /** VIP 等级 */
+  vipLevel: number;
+  /** VIP 类型码 */
+  vipCode: number;
+  /** 静态图标 */
+  iconUrl: string | null;
+}

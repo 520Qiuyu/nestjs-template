@@ -1,9 +1,13 @@
 import type { BatchImportResult } from '@/common/dtos/batch-import.dto';
 import { generateError, generateOk } from '@/common/libs/response';
+import { NeteaseUserService } from '@/netease/user/user.service';
 import { PrismaService } from '@/prisma.service';
+import { getQishuiUserInfo } from '@/qishui/apis/user';
 import type { Response } from '@/types/global';
+import type { QishuiAuthParams } from '@/types/qishui';
 import { Injectable } from '@nestjs/common';
 import type { AuthInfo, Prisma } from '@prisma/client';
+import dayjs from 'dayjs';
 import type {
   AuthInfoPayload,
   AuthPlatformSchema,
@@ -13,11 +17,25 @@ import type {
   ListAuthInfoQueryDto,
   UpdateAuthInfoDto,
   UpdateAuthInfoStatusDto,
+  ValidateAuthInfoDto,
+  ValidateByCookieAndPlatformDto,
 } from './dto/auth-management.dto';
+
+/** 平台校验结果 */
+interface AuthValidateResult {
+  isAvailable: boolean;
+  message: string;
+  extra?: unknown;
+  /** 过期时间戳（毫秒），有则写入备注 */
+  expireTime?: number;
+}
 
 @Injectable()
 export class AuthManagementService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly neteaseUserService: NeteaseUserService,
+  ) {}
 
   /**
    * 从 JSON 中读取字符串字段
@@ -29,6 +47,29 @@ export class AuthManagementService {
   private readString(payload: AuthInfoPayload, key: string) {
     const value = payload[key];
     return typeof value === 'string' ? value : '';
+  }
+
+  /**
+   * 读取 cookie，兼容 cookie / cookies 字段
+   * @example
+   * ```ts
+   * this.readCookie(payload);
+   * ```
+   */
+  private readCookie(payload: AuthInfoPayload) {
+    return this.readString(payload, 'cookie') || this.readString(payload, 'cookies');
+  }
+
+  /**
+   * 把过期时间格式化成备注
+   * @example
+   * ```ts
+   * this.buildExpireRemark(1814543999000);
+   * ```
+   */
+  private buildExpireRemark(expireTime?: number) {
+    if (!expireTime) return undefined;
+    return `到期时间：${dayjs(expireTime).format('YYYY-MM-DD')}`;
   }
 
   /**
@@ -70,7 +111,7 @@ export class AuthManagementService {
       platform: row.platform,
       name: this.readString(payload, 'name'),
       deviceId: this.readString(payload, 'deviceId'),
-      cookie: this.readString(payload, 'cookie'),
+      cookie: this.readCookie(payload),
       xHelios: this.readString(payload, 'xHelios'),
       xMedusa: this.readString(payload, 'xMedusa'),
       isAvailable: row.isAvailable,
@@ -114,7 +155,7 @@ export class AuthManagementService {
       keyword,
       platform,
       status,
-      completeStatus,
+      isAvailable,
     } = query;
 
     const allowedSortFields = {
@@ -147,11 +188,7 @@ export class AuthManagementService {
         : statuses?.length
           ? { status: { in: statuses } }
           : {}),
-      ...(completeStatus === 'complete'
-        ? { isAvailable: true }
-        : completeStatus === 'incomplete'
-          ? { isAvailable: false }
-          : {}),
+      ...(typeof isAvailable === 'boolean' ? { isAvailable } : {}),
       ...(trimmedKeyword
         ? {
             OR: [
@@ -245,12 +282,11 @@ export class AuthManagementService {
    */
   async create(body: CreateAuthInfoDto) {
     const payload = this.normalizePayload(body.authInfo);
-    const complete = this.isComplete(payload);
     const row = await this.prisma.authInfo.create({
       data: {
         platform: body.platform,
         authInfo: payload,
-        isAvailable: body.isAvailable ?? complete,
+        isAvailable: body.isAvailable ?? true,
         status: body.status,
         remark: body.remark?.trim() || null,
       },
@@ -277,7 +313,6 @@ export class AuthManagementService {
     const nextPayload = body.authInfo
       ? this.normalizePayload(body.authInfo)
       : this.normalizePayload(existing.authInfo);
-    const complete = this.isComplete(nextPayload);
     const row = await this.prisma.authInfo.update({
       where: { id },
       data: {
@@ -285,9 +320,7 @@ export class AuthManagementService {
         ...(body.authInfo ? { authInfo: nextPayload } : {}),
         ...(body.isAvailable !== undefined
           ? { isAvailable: body.isAvailable }
-          : body.authInfo
-            ? { isAvailable: complete }
-            : {}),
+          : {}),
         ...(body.status ? { status: body.status } : {}),
         ...(body.remark !== undefined
           ? { remark: body.remark?.trim() || null }
@@ -361,7 +394,7 @@ export class AuthManagementService {
     const data = {
       platform: item.platform,
       authInfo: payload,
-      isAvailable: item.isAvailable ?? this.isComplete(payload),
+      isAvailable: item.isAvailable ?? true,
       status: item.status ?? 'normal',
       remark: item.remark?.trim() || null,
       isDeleted: false,
@@ -458,5 +491,192 @@ export class AuthManagementService {
       where: { id },
       data: { useCount: { increment: 1 } },
     });
+  }
+
+  /**
+   * 校验网易云认证是否可用（需在期 SVIP）
+   * @example
+   * ```ts
+   * await this.validateNetease(payload);
+   * ```
+   */
+  private async validateNetease(
+    payload: AuthInfoPayload,
+  ): Promise<AuthValidateResult> {
+    const cookie = this.readCookie(payload);
+    if (!cookie) {
+      return { isAvailable: false, message: '缺少 cookie' };
+    }
+
+    const svipInfo =
+      await this.neteaseUserService.getUserSvipInfoByCookie(cookie);
+    if (!svipInfo) {
+      return { isAvailable: false, message: '获取网易云 VIP 信息失败' };
+    }
+    if (!svipInfo.isSvip) {
+      return {
+        isAvailable: false,
+        message: '当前账号不是有效 SVIP',
+        extra: svipInfo,
+        expireTime: svipInfo.expireTime || undefined,
+      };
+    }
+    const remainDays = Math.max(
+      0,
+      Math.ceil((svipInfo.expireTime - Date.now()) / (24 * 60 * 60 * 1000)),
+    );
+    return {
+      isAvailable: true,
+      message: `账号可用，到期时间为 ${dayjs(svipInfo.expireTime).format('YYYY-MM-DD')}，剩余 ${remainDays} 天`,
+      extra: svipInfo,
+      expireTime: svipInfo.expireTime || undefined,
+    };
+  }
+
+  /**
+   * 校验汽水认证是否可用
+   * @example
+   * ```ts
+   * await this.validateQishui(payload);
+   * ```
+   */
+  private async validateQishui(
+    payload: AuthInfoPayload,
+  ): Promise<AuthValidateResult> {
+    const deviceId = this.readString(payload, 'deviceId');
+    const cookie = this.readCookie(payload);
+    if (!deviceId || !cookie) {
+      return { isAvailable: false, message: '缺少 cookie 或 deviceId' };
+    }
+
+    const auth: QishuiAuthParams = {
+      deviceId,
+      cookie,
+      xHelios: this.readString(payload, 'xHelios') || undefined,
+      xMedusa: this.readString(payload, 'xMedusa') || undefined,
+    };
+
+    try {
+      const data = await getQishuiUserInfo(auth);
+      const myInfo = data?.my_info;
+      const isSvip = Boolean(myInfo?.is_vip && myInfo.vip_stage === 'svip');
+      const failed =
+        !data ||
+        data.status_code !== 0 ||
+        !myInfo ||
+        !isSvip;
+      if (failed) {
+        return {
+          isAvailable: false,
+          message:
+            !data || data.status_code !== 0 || !myInfo
+              ? '汽水账号校验失败'
+              : '当前账号不是有效 SVIP',
+          extra: data,
+        };
+      }
+      return {
+        isAvailable: true,
+        message: '账号可用',
+        extra: data,
+      };
+    } catch (error) {
+      console.log('validate qishui error', error);
+      return { isAvailable: false, message: '汽水账号校验失败' };
+    }
+  }
+
+  /**
+   * 按平台执行认证校验
+   * @example
+   * ```ts
+   * await this.runPlatformValidate('netease', payload);
+   * ```
+   */
+  private async runPlatformValidate(
+    platform: string,
+    payload: AuthInfoPayload,
+  ): Promise<AuthValidateResult | null> {
+    switch (platform) {
+      case 'netease':
+        return this.validateNetease(payload);
+      case 'qishui':
+        return this.validateQishui(payload);
+      default:
+        return null;
+    }
+  }
+
+  /**
+   * 按平台校验认证信息是否可用，并回写 isAvailable
+   * @example
+   * ```ts
+   * await this.validate({ id });
+   * ```
+   */
+  async validate(body: ValidateAuthInfoDto) {
+    const existing = await this.prisma.authInfo.findFirst({
+      where: { id: body.id, isDeleted: false },
+    });
+    if (!existing) {
+      return generateError('认证信息不存在');
+    }
+
+    const payload = this.normalizePayload(existing.authInfo);
+    const result = await this.runPlatformValidate(existing.platform, payload);
+    if (!result) {
+      return generateError('不支持的认证平台');
+    }
+
+    const nextRemark = this.buildExpireRemark(result.expireTime) ?? existing.remark;
+    const shouldUpdate =
+      existing.isAvailable !== result.isAvailable ||
+      (existing.remark ?? null) !== (nextRemark ?? null);
+
+    const row = shouldUpdate
+      ? await this.prisma.authInfo.update({
+          where: { id: existing.id },
+          data: {
+            isAvailable: result.isAvailable,
+            remark: nextRemark,
+          },
+        })
+      : existing;
+
+    return generateOk(
+      {
+        ...this.formatItem(row),
+        extra: result.extra,
+      },
+      { message: result.message },
+    );
+  }
+
+  /**
+   * 通过 cookie 和平台校验账号是否可用，不落库
+   * @example
+   * ```ts
+   * await this.validateByCookieAndPlatform({ platform: 'netease', cookie });
+   * ```
+   */
+  async validateByCookieAndPlatform(body: ValidateByCookieAndPlatformDto) {
+    const payload: AuthInfoPayload = {
+      cookie: body.cookie,
+      ...(body.deviceId ? { deviceId: body.deviceId } : {}),
+      ...(body.xHelios ? { xHelios: body.xHelios } : {}),
+      ...(body.xMedusa ? { xMedusa: body.xMedusa } : {}),
+    };
+    const result = await this.runPlatformValidate(body.platform, payload);
+    if (!result) {
+      return generateError('不支持的认证平台');
+    }
+
+    return generateOk(
+      {
+        isAvailable: result.isAvailable,
+        extra: result.extra,
+      },
+      { message: result.message },
+    );
   }
 }

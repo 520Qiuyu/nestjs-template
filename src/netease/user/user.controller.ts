@@ -13,4 +13,10 @@ export class NeteaseUserController {
   async getUserAccountInfo(@RequestMeta('cookie') cookie: string) {
     return this.userService.getUserAccountInfoByCookie(cookie);
   }
+
+  // 获取用户vip信息
+  @Get('vip')
+  async getUserVipInfo(@RequestMeta('cookie') cookie: string) {
+    return this.userService.getUserVipInfoByCookie(cookie);
+  }
 }

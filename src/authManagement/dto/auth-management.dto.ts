@@ -21,8 +21,13 @@ export const ListAuthInfoQuerySchema = PaginationQuerySchema.extend({
   platform: z.string().optional(),
   /** 状态，支持多选：normal,disabled */
   status: z.string().optional(),
-  /** 完整性：complete | incomplete */
-  completeStatus: z.enum(['complete', 'incomplete']).optional(),
+  /** 当前账号是否可用 */
+  isAvailable: z
+    .union([z.boolean(), z.enum(['true', 'false'])])
+    .optional()
+    .transform((value) =>
+      value === undefined ? undefined : value === true || value === 'true',
+    ),
 });
 /** 认证信息列表查询参数类型 */
 export class ListAuthInfoQueryDto extends createZodDto(ListAuthInfoQuerySchema) {}
@@ -80,4 +85,40 @@ export const BatchImportAuthInfosSchema = z.object({
 /** 批量导入认证信息请求体类型 */
 export class BatchImportAuthInfosDto extends createZodDto(
   BatchImportAuthInfosSchema,
+) {}
+
+/** 校验认证信息请求体 */
+export const ValidateAuthInfoSchema = z.object({
+  /** 认证信息 id */
+  id: z.string().min(1, '认证信息 id 不能为空'),
+});
+/** 校验认证信息请求体类型 */
+export class ValidateAuthInfoDto extends createZodDto(ValidateAuthInfoSchema) {}
+
+/** 通过 cookie 和平台校验认证信息请求体 */
+export const ValidateByCookieAndPlatformSchema = z
+  .object({
+    /** 认证平台 */
+    platform: AuthPlatformSchema,
+    /** Cookie */
+    cookie: z.string().min(1, 'cookie 不能为空'),
+    /** 设备 ID，汽水平台必填 */
+    deviceId: z.string().trim().optional(),
+    /** x-helios，汽水平台可选 */
+    xHelios: z.string().optional(),
+    /** x-medusa，汽水平台可选 */
+    xMedusa: z.string().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.platform === 'qishui' && !data.deviceId) {
+      ctx.addIssue({
+        code: 'custom',
+        message: '汽水平台需要 deviceId',
+        path: ['deviceId'],
+      });
+    }
+  });
+/** 通过 cookie 和平台校验认证信息请求体类型 */
+export class ValidateByCookieAndPlatformDto extends createZodDto(
+  ValidateByCookieAndPlatformSchema,
 ) {}

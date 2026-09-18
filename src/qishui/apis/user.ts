@@ -1,4 +1,8 @@
-import type { GetQishuiUserInfoOptions, QishuiAuthParams } from '@/types/qishui';
+import type {
+  GetQishuiUserInfoOptions,
+  GetQishuiUserInfoResponse,
+  QishuiAuthParams,
+} from '@/types/qishui';
 import { get } from '../utils/request';
 
 /**
@@ -11,4 +15,4 @@ import { get } from '../utils/request';
 export const getQishuiUserInfo = (
   auth: QishuiAuthParams,
   options: GetQishuiUserInfoOptions = {},
-) => get('/luna/pc/me', auth, {}, options);
+) => get<GetQishuiUserInfoResponse>('/luna/pc/me', auth, {}, options);

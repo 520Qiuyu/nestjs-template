@@ -34,4 +34,9 @@ export type {
   NeteaseSongUrl,
   SoundQualityType,
 } from './song';
-export type { NeteaseUser } from './user';
+export type {
+  NeteaseSvipInfo,
+  NeteaseUser,
+  NeteaseVipInfo,
+  NeteaseVipPackage,
+} from './user';
