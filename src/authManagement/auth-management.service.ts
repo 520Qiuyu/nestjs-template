@@ -10,7 +10,6 @@ import type { AuthInfo, Prisma } from '@prisma/client';
 import dayjs from 'dayjs';
 import type {
   AuthInfoPayload,
-  AuthPlatformSchema,
   BatchImportAuthInfosDto,
   CreateAuthInfoDto,
   ImportAuthInfoItem,
@@ -30,8 +29,21 @@ interface AuthValidateResult {
   expireTime?: number;
 }
 
+/** 同一 cookie 粘滞时长，到期后再换号 */
+const STICKY_AUTH_TTL_MS = 5 * 60 * 1000;
+
+type AuthPlatform = 'qishui' | 'netease';
+
+type StickyAuthSlot = {
+  id: string;
+  expireAt: number;
+};
+
 @Injectable()
 export class AuthManagementService {
+  /** 按平台粘滞当前使用的 cookie，避免每首歌都换号 */
+  private readonly stickyAuthMap = new Map<AuthPlatform, StickyAuthSlot>();
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly neteaseUserService: NeteaseUserService,
@@ -457,26 +469,91 @@ export class AuthManagementService {
   }
 
   /**
-   * 根据平台随机获取一个认证信息，使用次数最少的，且有效的
+   * 根据平台获取一个可用认证：默认粘滞 10 分钟，到期后再换使用次数最少的号
    * @example
    * ```ts
    * await this.getRandomValidAuthInfo(platform);
    * ```
    */
-  async getRandomValidAuthInfo(platform: keyof typeof AuthPlatformSchema.enum) {
-    const row = await this.prisma.authInfo.findFirst({
+  async getRandomValidAuthInfo(platform: AuthPlatform) {
+    const now = Date.now();
+    const sticky = this.stickyAuthMap.get(platform);
+    if (sticky && sticky.expireAt > now) {
+      const stickyRow = await this.findUsableAuthById(platform, sticky.id);
+      if (stickyRow) {
+        return generateOk(this.formatItem(stickyRow));
+      }
+      this.stickyAuthMap.delete(platform);
+    }
+
+    const row = await this.findLeastUsedAuth(platform, sticky?.id);
+    if (!row) {
+      return generateError('没有可用的认证信息');
+    }
+    this.stickyAuthMap.set(platform, {
+      id: row.id,
+      expireAt: now + STICKY_AUTH_TTL_MS,
+    });
+    return generateOk(this.formatItem(row));
+  }
+
+  /**
+   * 下载失败时丢掉当前粘滞 cookie，下次换号
+   * @example
+   * ```ts
+   * this.releaseStickyAuth('netease', authId);
+   * ```
+   */
+  releaseStickyAuth(platform: AuthPlatform, id?: string) {
+    const sticky = this.stickyAuthMap.get(platform);
+    if (!sticky) return;
+    if (!id || sticky.id === id) {
+      this.stickyAuthMap.delete(platform);
+    }
+  }
+
+  /**
+   * 查找指定且仍可用的认证
+   * @example
+   * ```ts
+   * await this.findUsableAuthById('netease', id);
+   * ```
+   */
+  private findUsableAuthById(platform: AuthPlatform, id: string) {
+    return this.prisma.authInfo.findFirst({
       where: {
+        id,
         platform,
         isDeleted: false,
         isAvailable: true,
         status: 'normal',
       },
+    });
+  }
+
+  /**
+   * 取使用次数最少的可用认证，优先避开刚到期的号
+   * @example
+   * ```ts
+   * await this.findLeastUsedAuth('netease', excludeId);
+   * ```
+   */
+  private async findLeastUsedAuth(platform: AuthPlatform, excludeId?: string) {
+    const baseWhere = {
+      platform,
+      isDeleted: false,
+      isAvailable: true,
+      status: 'normal' as const,
+    };
+    const row = await this.prisma.authInfo.findFirst({
+      where: excludeId ? { ...baseWhere, id: { not: excludeId } } : baseWhere,
       orderBy: { useCount: 'asc' },
     });
-    if (!row) {
-      return generateError('没有可用的认证信息');
-    }
-    return generateOk(this.formatItem(row));
+    if (row || !excludeId) return row;
+    return this.prisma.authInfo.findFirst({
+      where: baseWhere,
+      orderBy: { useCount: 'asc' },
+    });
   }
 
   /**

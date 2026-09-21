@@ -55,6 +55,7 @@ export class NeteaseSongService {
     let parseStatus: CreateParseLogInput['status'] = 'success';
     let errorMsg: string | null = null;
     let targetId = id;
+    let authId: string | undefined;
     try {
       // 检查卡密
       const checkSecretMessage =
@@ -67,7 +68,6 @@ export class NeteaseSongService {
       // 开始解析
       const quality = (level ?? 'exhigh') as SoundQualityType; // cspell:ignore exhigh
       let cookie: string | undefined;
-      let authId: string | undefined;
       let realIP: string | undefined;
       if (getDownloadUrl) {
         const authInfoRes =
@@ -107,28 +107,20 @@ export class NeteaseSongService {
       if (song) {
         songIdDetailMap.set(song);
       }
+      if (authId) {
+        this.authManagementService.increaseUseCount(authId);
+      }
       // 获取下载链接,记录次数
-      if (getDownloadUrl && downloadData?.url) {
-        this.cardSecretService.increaseParseCount(cardSecret).then(async () => {
-          if (authId) {
-            this.authManagementService.increaseUseCount(authId);
-          }
-          this.logsService.create({
-            cardSecret,
-            type: 'song',
-            platform: 'netease',
-            targetName: songIdDetailMap.getLogTarget(id)?.targetName,
-            targetId,
-            status: parseStatus,
-            errorMsg,
-            parseParams: { id, level, cardSecret, authId },
-            ip: meta.ip,
-            path: meta.path,
-            method: meta.method,
-            ua: meta.userAgent,
-            durationMs: Date.now() - start,
-          });
-        });
+      if (getDownloadUrl) {
+        if (downloadData?.url) {
+          parseStatus = 'success';
+          errorMsg = null;
+          this.cardSecretService.increaseParseCount(cardSecret);
+        } else {
+          parseStatus = 'fail';
+          errorMsg = '获取歌曲下载地址失败';
+          this.authManagementService.releaseStickyAuth('netease', authId);
+        }
       }
       // 返回结果
       return generateOk({
@@ -141,10 +133,26 @@ export class NeteaseSongService {
         quality: qualityData as NeteaseSongQualityData | null,
       });
     } catch (error) {
+      console.log('error', error);
       parseStatus = 'fail';
       errorMsg = error instanceof Error ? error.message : '获取歌曲详情失败';
       return generateError<NeteaseSongDetailData>('获取歌曲详情失败');
     } finally {
+      this.logsService.create({
+        cardSecret,
+        type: 'song',
+        platform: 'netease',
+        targetName: songIdDetailMap.getLogTarget(id)?.targetName,
+        targetId,
+        status: parseStatus,
+        errorMsg,
+        parseParams: { id, level, cardSecret, authId },
+        ip: meta.ip,
+        path: meta.path,
+        method: meta.method,
+        ua: meta.userAgent,
+        durationMs: Date.now() - start,
+      });
     }
   }
 
@@ -243,12 +251,12 @@ export class NeteaseSongService {
       });
       const { status, body } = res || {};
       const data = body?.data as NeteaseSongUrl | undefined;
+      if (authId) {
+        this.authManagementService.increaseUseCount(authId);
+      }
       if (status === 200 && body?.code === 200 && data?.url) {
         // 解析成功，记录使用次数
         await this.cardSecretService.increaseParseCount(cardSecretParam);
-        if (authId) {
-          this.authManagementService.increaseUseCount(authId);
-        }
         return generateOk(data);
       }
       parseStatus = 'fail';
@@ -256,11 +264,13 @@ export class NeteaseSongService {
         (body?.message as string) ||
         (body?.msg as string) ||
         '获取歌曲下载地址失败';
+      this.authManagementService.releaseStickyAuth('netease', authId);
       return generateError<NeteaseSongUrl>(errorMsg);
     } catch (error) {
       parseStatus = 'fail';
       errorMsg =
         error instanceof Error ? error.message : '获取歌曲下载地址失败';
+      this.authManagementService.releaseStickyAuth('netease', authId);
       return generateError<NeteaseSongUrl>(
         error instanceof Error ? error.message : '获取歌曲下载地址失败',
       );
