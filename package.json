@@ -42,6 +42,7 @@
     "crypto-js": "^4.2.0",
     "dayjs": "^1.11.21",
     "dotenv": "^17.4.2",
+    "ioredis": "5.8.2",
     "music-metadata": "^11.13.0",
     "nestjs-zod": "^5.4.0",
     "reflect-metadata": "^0.2.2",

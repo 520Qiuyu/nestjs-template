@@ -307,7 +307,7 @@ model IpBlacklist {
   ip          String
   // 来源 manual | rate_limit
   source      String    @default("manual")
-  // 状态 active | unblocked
+  // 状态 active | unblocked。active 为启用，unblocked 为停用
   status      String    @default("active")
   // 过期时间；null = 永久
   expireAt    DateTime?

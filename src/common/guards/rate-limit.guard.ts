@@ -1,3 +1,4 @@
+import { IpBlacklistService } from '@/ipBlacklist/ip-blacklist.service';
 import {
   CanActivate,
   ExecutionContext,
@@ -14,7 +15,7 @@ import { resolveClientIp } from '../decorators/request-meta.decorator';
 import { generateTooFrequent } from '../libs/response';
 
 /** 单个限流窗口记录 */
-interface RateLimitRecord {
+export interface RateLimitRecord {
   /** 当前窗口内请求次数 */
   count: number;
   /** 窗口重置时间戳（ms） */
@@ -43,7 +44,10 @@ export class RateLimitGuard implements CanActivate {
   private readonly cleanupEvery = 200;
   private requestCounter = 0;
 
-  constructor(private readonly reflector: Reflector) {}
+  constructor(
+    private readonly reflector: Reflector,
+    private readonly ipBlacklistService: IpBlacklistService,
+  ) {}
 
   canActivate(context: ExecutionContext): boolean {
     const options = this.reflector.getAllAndOverride<RateLimitOptions>(
@@ -99,6 +103,13 @@ export class RateLimitGuard implements CanActivate {
       response
         .status(429)
         .json(generateTooFrequent('操作过于频繁，请稍后再试！'));
+      // 拉黑 IP
+      this.ipBlacklistService.createRateLimit(ip, {
+        ttlMs,
+        request,
+        record,
+        limit,
+      });
       return false;
     }
 

@@ -30,6 +30,14 @@ export class ListIpBlacklistQueryDto extends createZodDto(
   ListIpBlacklistQuerySchema,
 ) {}
 
+/** 按 IP 查询最近一条 */
+export const LatestIpBlacklistQuerySchema = z.object({
+  ip: Ipv4Schema,
+});
+export class LatestIpBlacklistQueryDto extends createZodDto(
+  LatestIpBlacklistQuerySchema,
+) {}
+
 /** 创建黑名单 */
 export const CreateIpBlacklistSchema = z.object({
   ip: Ipv4Schema,
@@ -38,6 +46,14 @@ export const CreateIpBlacklistSchema = z.object({
   remark: z.string().trim().max(200).optional(),
 });
 export class CreateIpBlacklistDto extends createZodDto(CreateIpBlacklistSchema) {}
+
+/** 拦截开关 */
+export const UpdateIpBlacklistEnabledSchema = z.object({
+  enabled: z.boolean(),
+});
+export class UpdateIpBlacklistEnabledDto extends createZodDto(
+  UpdateIpBlacklistEnabledSchema,
+) {}
 
 /** 更新黑名单 */
 export const UpdateIpBlacklistSchema = z.object({

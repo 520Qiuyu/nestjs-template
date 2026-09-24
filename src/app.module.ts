@@ -8,6 +8,7 @@ import { AuthModule } from './auth/auth.module';
 import { RateLimitGuard } from './common/guards/rate-limit.guard';
 import loadConfigs from './common/libs/loadConfigs';
 import { HttpExceptionFilter } from './filters/http-exception-filter';
+import { IpBlacklistGuard } from './ipBlacklist/ip-blacklist.guard';
 import { IpBlacklistModule } from './ipBlacklist/ip-blacklist.module';
 import { NeteaseModule } from './netease/netease.module';
 import { PermissionModule } from './permission/permission.module';
@@ -46,6 +47,11 @@ import { UserModule } from './user/user.module';
     {
       provide: APP_FILTER,
       useClass: HttpExceptionFilter,
+    },
+    // 黑名单拦截优先于限流和登录鉴权
+    {
+      provide: APP_GUARD,
+      useClass: IpBlacklistGuard,
     },
     // 使用 RateLimitGuard 做接口限流（仅对配置了 @RateLimit 的路由生效）
     {

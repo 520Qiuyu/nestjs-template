@@ -44,20 +44,34 @@ export interface RequestMeta {
 export type RequestMetaKey = keyof RequestMeta;
 
 /**
- * 从请求中解析客户端 IP
+ * 去掉 IPv6 映射前缀，本地回环统一成 IPv4。
+ * @example
+ * ```ts
+ * normalizeClientIp('::ffff:192.168.1.8') // '192.168.1.8'
+ * normalizeClientIp('::1') // '127.0.0.1'
+ * ```
+ */
+const normalizeClientIp = (value?: string) => {
+  const ip = value?.split(',')[0]?.trim().replace(/^::ffff:/i, '') || '';
+  if (ip === '::1') return '127.0.0.1';
+  return ip;
+};
+
+/**
+ * 从请求中解析客户端 IP。优先使用代理传来的 X-Real-IP / X-Forwarded-For。
  * @example
  * ```ts
  * const ip = resolveClientIp(req);
  * ```
  */
 export const resolveClientIp = (req: Request): string => {
+  const realIp = req.headers['x-real-ip'];
   const forwardedFor = req.headers['x-forwarded-for'];
-  const ip = Array.isArray(forwardedFor)
-    ? forwardedFor[0]
-    : forwardedFor?.split(',')[0]?.trim() ||
-      req.ip ||
-      req.socket.remoteAddress ||
-      '';
+  const ip =
+    normalizeClientIp(Array.isArray(realIp) ? realIp[0] : realIp) ||
+    normalizeClientIp(Array.isArray(forwardedFor) ? forwardedFor[0] : forwardedFor) ||
+    normalizeClientIp(req.ip) ||
+    normalizeClientIp(req.socket.remoteAddress);
   return ip || 'unknown';
 };
 
