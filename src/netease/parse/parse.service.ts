@@ -1,6 +1,8 @@
 import type { RequestMeta } from '@/common/decorators/request-meta.decorator';
 import { generateError, generateOk } from '@/common/libs/response';
 import { CardSecretService } from '@/qishui/cardSecret/card-secret.service';
+import type { CreateParseLogInput } from '@/qishui/logs/dto/logs.dto';
+import { LogsService } from '@/qishui/logs/logs.service';
 import { Injectable } from '@nestjs/common';
 import { NeteaseAlbumService } from '../album/album.service';
 import { NeteasePlaylistService } from '../playlist/playlist.service';
@@ -31,6 +33,7 @@ export class NeteaseParseService {
     private readonly songService: NeteaseSongService,
     private readonly albumService: NeteaseAlbumService,
     private readonly cardSecretService: CardSecretService,
+    private readonly logsService: LogsService,
   ) {}
 
   /**
@@ -52,11 +55,14 @@ export class NeteaseParseService {
     }
 
     // 获取歌曲详情、歌词
-    const detailRes = await this.songService.getSongDetail({
-      id,
-      getDownloadUrl: false,
-      cardSecret,
-    }, _meta);
+    const detailRes = await this.songService.getSongDetail(
+      {
+        id,
+        getDownloadUrl: false,
+        cardSecret,
+      },
+      _meta,
+    );
 
     if (detailRes.code !== 200 || !detailRes.data?.detail?.song) {
       return generateError(detailRes.message || '未解析到有效歌曲信息', {
@@ -83,41 +89,86 @@ export class NeteaseParseService {
     _query: ParseNeteasePlaylistQueryDto,
     _meta: RequestMeta,
   ) {
+    const start = Date.now();
+    let parseStatus: CreateParseLogInput['status'] = 'success';
+    let errorMsg: string | null = null;
+    let targetName = '';
+    let targetId = '';
     // 支持的值
     // id:纯数字
     // 分享链接：https://music.163.com/#/playlist?id=7044354223
     const { shareLink, cardSecret } = _query;
-    // 检查卡密是否正常
-    const checkSecretMessage =
-      await this.cardSecretService.validateSecret(cardSecret);
-    if (checkSecretMessage !== true) {
-      return generateError(checkSecretMessage);
+    try {
+      // 检查卡密是否正常
+      const checkSecretMessage =
+        await this.cardSecretService.validateSecret(cardSecret);
+      if (checkSecretMessage !== true) {
+        parseStatus = 'fail';
+        errorMsg = checkSecretMessage;
+        return generateError(checkSecretMessage);
+      }
+
+      const id = parseNeteaseShareId(shareLink);
+      targetId = id;
+      if (!id) {
+        parseStatus = 'fail';
+        errorMsg = '无效的分享链接，请输入正确的分享链接或id';
+        return generateError(errorMsg);
+      }
+
+      // 获取歌单详情、以及歌曲
+      const [detailRes, allRes] = await Promise.all([
+        this.playlistService.getPlaylistDetail({ id, cardSecret }),
+        this.playlistService.getPlaylistTrackAll({ id, cardSecret }),
+      ]);
+
+      const playlist = detailRes.data?.playlist;
+      if (detailRes.code !== 200 || !playlist) {
+        parseStatus = 'fail';
+        errorMsg = detailRes.message || '未解析到有效歌单信息';
+        return generateError(errorMsg, {
+          code: detailRes.code !== 200 ? detailRes.code : 500,
+        });
+      }
+
+      targetName = playlist.name || '';
+      targetId = String(playlist.id || id);
+
+      // 返回结果（仅保留前端解析页实际使用的字段）
+      const isOrigin = idDev; // 开发调试，返回完整数据
+      return generateOk(
+        isOrigin
+          ? {
+              detail: detailRes.data,
+              all: allRes.data,
+            }
+          : pickNeteasePlaylistParseResult(
+              detailRes.data as NeteasePlaylistDetail | null,
+              allRes.data as NeteasePlaylistTrackAll | null,
+            ),
+      );
+    } catch (error) {
+      console.log('error', error);
+      parseStatus = 'fail';
+      errorMsg = error instanceof Error ? error.message : '解析歌单失败';
+      return generateError(errorMsg);
+    } finally {
+      this.logsService.create({
+        cardSecret,
+        type: 'playlist',
+        platform: 'netease',
+        targetName,
+        targetId,
+        status: parseStatus,
+        errorMsg,
+        parseParams: { shareLink, cardSecret },
+        ip: _meta.ip,
+        path: _meta.path,
+        method: _meta.method,
+        ua: _meta.userAgent,
+        durationMs: Date.now() - start,
+      });
     }
-
-    const id = parseNeteaseShareId(shareLink);
-    if (!id) {
-      return generateError('无效的分享链接，请输入正确的分享链接或id');
-    }
-
-    // 获取歌单详情、以及歌曲
-    const [detailRes, allRes] = await Promise.all([
-      this.playlistService.getPlaylistDetail({ id, cardSecret }),
-      this.playlistService.getPlaylistTrackAll({ id, cardSecret }),
-    ]);
-
-    // 返回结果（仅保留前端解析页实际使用的字段）
-    const isOrigin = idDev; // 开发调试，返回完整数据
-    return generateOk(
-      isOrigin
-        ? {
-            detail: detailRes.data,
-            all: allRes.data,
-          }
-        : pickNeteasePlaylistParseResult(
-            detailRes.data as NeteasePlaylistDetail | null,
-            allRes.data as NeteasePlaylistTrackAll | null,
-          ),
-    );
   }
 
   /**
