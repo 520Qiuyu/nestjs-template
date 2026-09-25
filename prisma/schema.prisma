@@ -297,6 +297,8 @@ model ParseLog {
   @@index([status])
   @@index([type])
   @@index([cardSecret])
+  @@index([isDeleted, ctime])
+  @@index([isDeleted, status, ctime])
 }
 
 // IP 黑名单
