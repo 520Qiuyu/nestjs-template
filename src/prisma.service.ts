@@ -9,7 +9,11 @@ export class PrismaService
   implements OnModuleInit, OnModuleDestroy
 {
   constructor(configService: ConfigService) {
-    super({ adapter, log: ['query', 'info', 'warn', 'error'] });
+    super({
+      adapter,
+      log: ['query', 'info', 'warn', 'error'],
+      transactionOptions: { timeout: 10000 },
+    });
   }
 
   async onModuleInit() {
